@@ -1,0 +1,6 @@
+{
+  "name": "FansLand 2.0",
+  "description": "Geopolitical strategy, diplomacy, economy, and nation management platform with interactive world map and multiplayer capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
