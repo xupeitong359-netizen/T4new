@@ -78,6 +78,11 @@ export const EditNationModal: React.FC<EditNationModalProps> = ({
  const [description, setDescription] = useState('');
  const [regime, setRegime] = useState<RegimeType>('君主立宪制');
  const [ideology, setIdeology] = useState<IdeologyType>('中立和平主义');
+ const [selectedRulingParty, setSelectedRulingParty] = useState<'communist' | 'fascist' | 'democratic' | 'neutral'>('neutral');
+ const [communistPartyName, setCommunistPartyName] = useState('人民劳动共产党');
+ const [fascistPartyName, setFascistPartyName] = useState('国家复兴法西斯党');
+ const [democraticPartyName, setDemocraticPartyName] = useState('自由民主进步同盟');
+ const [neutralPartyName, setNeutralPartyName] = useState('国家中立秩序阵线');
  const [language, setLanguage] = useState('汉语');
  const [currencyMode, setCurrencyMode] = useState<'lingyu' | 'custom'>('lingyu');
  const [customCurrencyName, setCustomCurrencyName] = useState('');
@@ -101,6 +106,11 @@ export const EditNationModal: React.FC<EditNationModalProps> = ({
    setDescription(nation.description || '');
    setRegime(nation.regime || '君主立宪制');
    setIdeology(nation.ideology || '中立和平主义');
+   setSelectedRulingParty(nation.rulingPartyId || 'neutral');
+   setCommunistPartyName(nation.partyNames?.communist || '人民劳动共产党');
+   setFascistPartyName(nation.partyNames?.fascist || '国家复兴法西斯党');
+   setDemocraticPartyName(nation.partyNames?.democratic || '自由民主进步同盟');
+   setNeutralPartyName(nation.partyNames?.neutral || '国家中立秩序阵线');
    setLanguage(nation.language || '汉语');
    
    const isDefault = !nation.currency || nation.currency === '玲玉币';
@@ -136,6 +146,13 @@ export const EditNationModal: React.FC<EditNationModalProps> = ({
     description: description.trim(),
     regime,
     ideology,
+    rulingPartyId: selectedRulingParty,
+    partyNames: {
+     communist: communistPartyName.trim() || '人民劳动共产党',
+     fascist: fascistPartyName.trim() || '国家复兴法西斯党',
+     democratic: democraticPartyName.trim() || '自由民主进步同盟',
+     neutral: neutralPartyName.trim() || '国家中立秩序阵线',
+    },
     language: language.trim(),
     currency: finalCurrency,
     currencyRate: finalCurrencyRate,
@@ -344,6 +361,133 @@ export const EditNationModal: React.FC<EditNationModalProps> = ({
           onChange={(e) => setLanguage(e.target.value)}
           className="w-full pl-7 pr-2 py-2 bg-slate-50 border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-slate-800 focus:bg-white transition"
          />
+        </div>
+       </div>
+
+       {/* 四大政党名称编辑 */}
+       <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/60">
+         <span className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
+          <Scale className="w-3.5 h-3.5 text-indigo-600" />
+          政党命名
+         </span>
+         <span className="text-[11px] text-slate-400 font-medium">
+          可切换国家执政党
+         </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+         <div className={`p-2 rounded-lg border transition-all space-y-1 shadow-2xs ${selectedRulingParty === 'communist' ? 'bg-rose-50/40 border-rose-400 ring-2 ring-rose-400/20' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center justify-between">
+           <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            共产主义
+           </label>
+           {selectedRulingParty === 'communist' ? (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-600 text-white">
+             ★ 执政党
+            </span>
+           ) : (
+            <button
+             type="button"
+             onClick={() => setSelectedRulingParty('communist')}
+             className="px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition cursor-pointer"
+            >
+             设为执政党
+            </button>
+           )}
+          </div>
+          <input
+           type="text"
+           value={communistPartyName}
+           onChange={(e) => setCommunistPartyName(e.target.value)}
+           placeholder="例：人民劳动共产党"
+           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 focus:bg-white"
+          />
+         </div>
+         <div className={`p-2 rounded-lg border transition-all space-y-1 shadow-2xs ${selectedRulingParty === 'fascist' ? 'bg-amber-50/40 border-amber-700/50 ring-2 ring-amber-700/20' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center justify-between">
+           <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-700"></span>
+            法西斯主义
+           </label>
+           {selectedRulingParty === 'fascist' ? (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-700 text-white">
+             ★ 执政党
+            </span>
+           ) : (
+            <button
+             type="button"
+             onClick={() => setSelectedRulingParty('fascist')}
+             className="px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 transition cursor-pointer"
+            >
+             设为执政党
+            </button>
+           )}
+          </div>
+          <input
+           type="text"
+           value={fascistPartyName}
+           onChange={(e) => setFascistPartyName(e.target.value)}
+           placeholder="例：国家复兴法西斯党"
+           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-600 focus:bg-white"
+          />
+         </div>
+         <div className={`p-2 rounded-lg border transition-all space-y-1 shadow-2xs ${selectedRulingParty === 'democratic' ? 'bg-blue-50/40 border-blue-400 ring-2 ring-blue-400/20' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center justify-between">
+           <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            民主主义
+           </label>
+           {selectedRulingParty === 'democratic' ? (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white">
+             ★ 执政党
+            </span>
+           ) : (
+            <button
+             type="button"
+             onClick={() => setSelectedRulingParty('democratic')}
+             className="px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 transition cursor-pointer"
+            >
+             设为执政党
+            </button>
+           )}
+          </div>
+          <input
+           type="text"
+           value={democraticPartyName}
+           onChange={(e) => setDemocraticPartyName(e.target.value)}
+           placeholder="例：自由民主进步同盟"
+           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white"
+          />
+         </div>
+         <div className={`p-2 rounded-lg border transition-all space-y-1 shadow-2xs ${selectedRulingParty === 'neutral' ? 'bg-slate-100/70 border-slate-400 ring-2 ring-slate-400/20' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center justify-between">
+           <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            中立主义
+           </label>
+           {selectedRulingParty === 'neutral' ? (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-700 text-white">
+             ★ 执政党
+            </span>
+           ) : (
+            <button
+             type="button"
+             onClick={() => setSelectedRulingParty('neutral')}
+             className="px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
+            >
+             设为执政党
+            </button>
+           )}
+          </div>
+          <input
+           type="text"
+           value={neutralPartyName}
+           onChange={(e) => setNeutralPartyName(e.target.value)}
+           placeholder="例：国家中立秩序阵线"
+           className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white"
+          />
+         </div>
         </div>
        </div>
       </div>
@@ -557,11 +701,8 @@ export const EditNationModal: React.FC<EditNationModalProps> = ({
        </div>
 
        <div>
-        <div className="flex items-center justify-between mb-1.5">
-         <label className="block text-xs font-bold text-slate-700">国旗 / 国徽印玺 (4:3)</label>
-         <span className="text-[10px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-          标准 4:3
-         </span>
+        <div className="mb-1.5">
+         <label className="block text-xs font-bold text-slate-700">国家旗帜 （4:3）</label>
         </div>
         <div className="flex flex-wrap items-center gap-3">
          <div

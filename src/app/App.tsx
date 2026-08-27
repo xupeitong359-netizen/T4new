@@ -76,10 +76,12 @@ import { PoliticsAndGovernanceView } from './components/PoliticsAndGovernanceVie
 import { StrategicResourcesView } from './components/StrategicResourcesView';
 import { InternationalEmbargoView } from './components/InternationalEmbargoView';
 import { WarCommandCenter } from './components/WarCommandCenter';
+import { NationalFocusTreePage } from './components/NationalFocusTreePage';
 
 export type TabView =
  | 'lobby'
  | 'my_nation'
+ | 'national_focus'
  | 'world_map'
  | 'admin'
  | 'research'
@@ -137,7 +139,7 @@ function MainApp() {
 
  // Navigation Tab
  const [activeTab, setActiveTab] = useState<TabView>('lobby');
- const [myNationSubTab, setMyNationSubTab] = useState<'overview' | 'economy' | 'military'>('overview');
+ const [myNationSubTab, setMyNationSubTab] = useState<'overview' | 'focus' | 'economy' | 'military'>('overview');
  const [targetNationToFocus, setTargetNationToFocus] = useState<Nation | null>(null);
 
  // Nations Data
@@ -679,10 +681,10 @@ function MainApp() {
     unreadNotifsCount={unreadNotifsCount}
    />
 
-   <div className={`flex-1 flex flex-col min-w-0 relative ${activeTab === 'world_map' || activeTab === 'research' ? 'h-screen overflow-hidden pb-0' : 'pb-20 md:pb-0 h-screen overflow-y-auto'}`}>
-    {/* Navigation Header for Non-Map and Non-Research Tabs */}
+   <div className={`flex-1 flex flex-col min-w-0 relative ${activeTab === 'world_map' || activeTab === 'research' || activeTab === 'national_focus' ? 'h-screen overflow-hidden pb-0' : 'pb-20 md:pb-0 h-screen overflow-y-auto'}`}>
+    {/* Navigation Header for Non-Map, Non-Research, Non-Focus Tabs */}
     <AnimatePresence>
-     {activeTab !== 'world_map' && activeTab !== 'research' && (
+     {activeTab !== 'world_map' && activeTab !== 'research' && activeTab !== 'national_focus' && (
       <motion.div
        key="top-navbar-wrapper"
        initial={{ y: -80, opacity: 0 }}
@@ -732,7 +734,7 @@ function MainApp() {
     )}
 
    {/* Main Container */}
-   <main className={`flex-1 w-full flex flex-col ${activeTab === 'world_map' || activeTab === 'research' ? 'p-0 h-full overflow-hidden relative' : 'py-2 sm:py-4'}`}>
+   <main className={`flex-1 w-full flex flex-col ${activeTab === 'world_map' || activeTab === 'research' || activeTab === 'national_focus' ? 'p-0 h-full overflow-hidden relative' : 'py-2 sm:py-4'}`}>
     {/* VIEW 1: LOBBY (国家页面) */}
     {activeTab === 'lobby' && (
      <div className="flex-1 flex flex-col animate-fadeIn">
@@ -1019,7 +1021,7 @@ function MainApp() {
 
         {/* Subtab Switcher for My Nation (国家执政) */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-3 gap-2">
-         <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
+          <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
           <button
            type="button"
            onClick={() => setMyNationSubTab('overview')}
@@ -1031,6 +1033,18 @@ function MainApp() {
           >
            <Landmark className="w-3.5 h-3.5 flex-shrink-0" />
            政务与外交
+          </button>
+          <button
+           type="button"
+           onClick={() => setMyNationSubTab('focus')}
+           className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
+            myNationSubTab === 'focus'
+             ? 'bg-white text-amber-900 shadow-sm'
+             : 'text-slate-600 hover:text-slate-900'
+           }`}
+          >
+           <Compass className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+           国家战略国策树
           </button>
           <button
            type="button"
@@ -1075,7 +1089,19 @@ function MainApp() {
          </div>
         </div>
 
-        {myNationSubTab === 'economy' ? (
+        {myNationSubTab === 'focus' ? (
+         <NationalFocusTreePage
+          nation={myNation}
+          onUpdateNation={(updated) => {
+           if (myNation) {
+            const merged = { ...myNation, ...updated };
+            setMyNation(merged);
+            setNations((prev) => prev.map((n) => (n.id === merged.id ? merged : n)));
+           }
+          }}
+          onNavigateTab={setActiveTab}
+         />
+        ) : myNationSubTab === 'economy' ? (
          <NationalEconomyDashboard
           nation={myNation}
           isOwner={true}
@@ -1472,6 +1498,17 @@ function MainApp() {
     {/* VIEW 4: ARMY COMMAND (陆军指挥) */}
     {activeTab === 'army' && (
      <ArmyPage nation={myNation} onUpdateNation={persistNationUpdate} showToast={showToast} />
+    )}
+
+    {/* VIEW: NATIONAL FOCUS (国家战略国策树) */}
+    {activeTab === 'national_focus' && (
+     <div className="flex-1 w-full h-full flex flex-col overflow-hidden animate-fadeIn">
+      <NationalFocusTreePage
+       nation={myNation}
+       onUpdateNation={persistNationUpdate}
+       onNavigateTab={setActiveTab}
+      />
+     </div>
     )}
 
     {/* VIEW 5: RESEARCH (国家科研与科技树) */}

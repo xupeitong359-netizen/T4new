@@ -13,7 +13,7 @@ const AVATAR_COLORS = [
 // Register
 authRouter.post('/register', async (req, res) => {
   try {
-    const { username, password, douyinName, isLingyuBaby } = req.body;
+    const { username, password, douyinName, isLingyuBaby, avatarColor: customAvatarColor, avatarUrl, avatarEmoji } = req.body;
 
     if (!username || typeof username !== 'string' || username.trim().length < 2) {
       return res.status(400).json({ error: '用户名至少需要2个字符' });
@@ -36,7 +36,7 @@ authRouter.post('/register', async (req, res) => {
     // Password must be hashed - never store plaintext
     const passwordHash = await bcrypt.hash(password, 10);
     const userId = 'usr_' + Math.random().toString(36).substring(2, 11);
-    const avatarColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+    const avatarColor = customAvatarColor || AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
 
     const newUser = db.createUser({
       id: userId,
@@ -45,6 +45,8 @@ authRouter.post('/register', async (req, res) => {
       douyinName: cleanDouyin,
       role: cleanUsername.toLowerCase() === 'admin' ? 'admin' : 'user',
       avatarColor,
+      avatarUrl: avatarUrl || undefined,
+      avatarEmoji: avatarEmoji || undefined,
       isLingyuBaby: Boolean(isLingyuBaby),
       createdAt: new Date().toISOString(),
     });
@@ -61,6 +63,8 @@ authRouter.post('/register', async (req, res) => {
         douyinName: newUser.douyinName,
         role: newUser.role,
         avatarColor: newUser.avatarColor,
+        avatarUrl: newUser.avatarUrl,
+        avatarEmoji: newUser.avatarEmoji,
         isLingyuBaby: newUser.isLingyuBaby,
         createdAt: newUser.createdAt,
       },

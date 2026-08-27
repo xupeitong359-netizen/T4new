@@ -11,7 +11,14 @@ interface AuthContextType {
  isAdmin: boolean;
  unreadNotifsCount: number;
  login: (username: string, password: string) => Promise<void>;
- register: (username: string, password: string, douyinName: string, isLingyuBaby?: boolean, adminPassword?: string) => Promise<void>;
+ register: (
+  username: string,
+  password: string,
+  douyinName: string,
+  isLingyuBaby?: boolean,
+  adminPassword?: string,
+  avatarData?: { avatarColor?: string; avatarUrl?: string; avatarEmoji?: string }
+ ) => Promise<void>;
  quickGuestLogin: (customName?: string) => Promise<void>;
  logout: () => void;
  refreshUserData: () => Promise<void>;
@@ -151,14 +158,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   setUnreadNotifsCount(notifData.unreadCount);
  }, []);
 
- const register = useCallback(async (username: string, password: string, douyinName: string, isLingyuBaby?: boolean, adminPassword?: string) => {
-  const res = await api.auth.register({ username, password, douyinName, isLingyuBaby, adminPassword });
-  tokenStorage.set(res.token);
-  setToken(res.token);
-  setUser(res.user);
-  storeSessionUser(res.user);
-  setMyNation(res.myNation || null);
- }, []);
+ const register = useCallback(
+  async (
+   username: string,
+   password: string,
+   douyinName: string,
+   isLingyuBaby?: boolean,
+   adminPassword?: string,
+   avatarData?: { avatarColor?: string; avatarUrl?: string; avatarEmoji?: string }
+  ) => {
+   const res = await api.auth.register({
+    username,
+    password,
+    douyinName,
+    isLingyuBaby,
+    adminPassword,
+    avatarColor: avatarData?.avatarColor,
+    avatarUrl: avatarData?.avatarUrl,
+    avatarEmoji: avatarData?.avatarEmoji,
+   });
+   tokenStorage.set(res.token);
+   setToken(res.token);
+   setUser(res.user);
+   storeSessionUser(res.user);
+   setMyNation(res.myNation || null);
+  },
+  []
+ );
 
  const quickGuestLogin = useCallback(async (customName?: string) => {
   const res = await api.auth.quickGuestLogin(customName);

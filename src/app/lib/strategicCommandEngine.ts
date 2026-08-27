@@ -806,105 +806,156 @@ export function calculateNationStability(
 }
 
 /**
- * Computes political regime profile, ruling party share, and national modifiers.
+ * Computes political regime profile, ruling party share, and national modifiers
+ * based on the four major ideologies: 共产主义 (Communist), 法西斯主义 (Fascist), 民主主义 (Democratic), 中立主义 (Neutral).
  */
 export function calculateNationPolitics(
  nation: Nation | null | undefined
 ): PoliticalState {
  const regime = nation?.regime || '君主立宪制';
- const ideology = nation?.ideology || '中立和平主义';
  const stability = nation?.stabilityIndex ?? 84;
 
- let regimeNameZh = regime;
- let rulingPartyName = '国家进步复兴阵线';
- let doctrine = '法治立宪 · 工业富国 · 和平自卫';
- let modifiers: RegimeModifier[] = [
-  { name: '宪政稳定加成', type: 'buff', value: '+10% 稳定度', description: '政体受法律严格制约，政局抗震性极强。' },
-  { name: '文官政府效能', type: 'buff', value: '+8% 政府效率', description: '内阁官僚体系运行顺畅，内政指令执行迅速。' },
-  { name: '常备军组织纪律', type: 'debuff', value: '-5% 突发战备动员速度', description: '议会宣战审议流程较繁琐。' },
+ // 1. 获取四大政党自定义命名 (若无则提供经典默认昵称)
+ const partyNames = {
+  communist: nation?.partyNames?.communist || '人民劳动共产党',
+  fascist: nation?.partyNames?.fascist || '国家复兴法西斯党',
+  democratic: nation?.partyNames?.democratic || '自由民主进步同盟',
+  neutral: nation?.partyNames?.neutral || '国家中立秩序阵线',
+ };
+
+ // 2. 判定当前执政党 (若未设定，则根据 ideology 映射或默认为 neutral)
+ let rulingPartyId: 'communist' | 'fascist' | 'democratic' | 'neutral' = nation?.rulingPartyId || 'neutral';
+ if (!nation?.rulingPartyId && nation?.ideology) {
+  const ideo = nation.ideology;
+  if (ideo.includes('共产') || ideo.includes('社会') || ideo.includes('苏维埃')) {
+   rulingPartyId = 'communist';
+  } else if (ideo.includes('法西斯') || ideo.includes('军国') || ideo.includes('威权')) {
+   rulingPartyId = 'fascist';
+  } else if (ideo.includes('民主') || ideo.includes('自由') || ideo.includes('重商')) {
+   rulingPartyId = 'democratic';
+  } else {
+   rulingPartyId = 'neutral';
+  }
+ }
+
+ // 3. 获取支持率 (新建国默认为执政党 100%，其余 0%)
+ let rawSupport = nation?.partySupport || {
+  communist: rulingPartyId === 'communist' ? 100 : 0,
+  fascist: rulingPartyId === 'fascist' ? 100 : 0,
+  democratic: rulingPartyId === 'democratic' ? 100 : 0,
+  neutral: rulingPartyId === 'neutral' ? 100 : 0,
+ };
+
+ // 4. 构建四大政党完整对象
+ const partyConfig = {
+  communist: {
+   id: 'communist',
+   name: partyNames.communist,
+   ideologyName: '共产主义',
+   color: '#dc2626',
+   leaderName: '总书记兼人民委员长',
+   policyDoctrine: '无产阶级专政 · 计划重工 · 集体公有制',
+   foreignPreference: '共产国际互助与无产阶级解放',
+   doctrine: '计划指令 · 重工统筹 · 公费医疗与平等分配',
+   buffDesc: '生产资料公有与计划指令执行力，军工与基建产能爆发力极强。',
+  },
+  fascist: {
+   id: 'fascist',
+   name: partyNames.fascist,
+   ideologyName: '法西斯主义',
+   color: '#78350f',
+   leaderName: '国家最高统帅 / 元首',
+   policyDoctrine: '领袖专政 · 极权军国 · 民族生存空间',
+   foreignPreference: '单边威慑扩张与轴心军事同盟',
+   doctrine: '铁血战争动员 · 先军政治 · 极速整军备战',
+   buffDesc: '统帅部直接管辖军团与军工，陆空军动员速度与前线攻势凌厉。',
+  },
+  democratic: {
+   id: 'democratic',
+   name: partyNames.democratic,
+   ideologyName: '自由民主主义',
+   color: '#2563eb',
+   leaderName: '民选大总统 / 内阁总理',
+   policyDoctrine: '宪政分权 · 自由市场 · 公民基本权利',
+   foreignPreference: '多边自由贸易与集体防卫公约',
+   doctrine: '法治立宪 · 减税简政 · 自由贸易繁荣',
+   buffDesc: '私营经济活力充沛，科技创新与对外关税贸易收益领先。',
+  },
+  neutral: {
+   id: 'neutral',
+   name: partyNames.neutral,
+   ideologyName: '中立主义',
+   color: '#64748b',
+   leaderName: '国家摄政官 / 秩序长官',
+   policyDoctrine: '秩序维稳 · 孤立自卫 · 传统保守体制',
+   foreignPreference: '永久中立与不结盟自卫',
+   doctrine: '国家安全维稳 · 孤立防御 · 财政收支平衡',
+   buffDesc: '政局动荡防范力高，不易卷入国际大国冲突，国内基本盘稳固。',
+  },
+ };
+
+ const allPartyKeys: ('communist' | 'fascist' | 'democratic' | 'neutral')[] = [
+  'communist',
+  'fascist',
+  'democratic',
+  'neutral',
  ];
 
- if (regime.includes('专制') || regime.includes('威权') || regime.includes('军政')) {
-  rulingPartyName = '最高统帅部执政党';
-  doctrine = '先军政治 · 铁腕动员 · 领土安全';
+ const allParties: PoliticalParty[] = allPartyKeys.map((key) => {
+  const cfg = partyConfig[key];
+  const isRuling = key === rulingPartyId;
+  return {
+   id: cfg.id,
+   name: cfg.name,
+   ideologyName: cfg.ideologyName,
+   supportPercent: Math.max(0, Math.min(100, Math.round(rawSupport[key] ?? 0))),
+   color: cfg.color,
+   isRuling,
+   leaderName: isRuling && nation?.ownerUsername ? `${nation.ownerUsername} (${cfg.leaderName})` : cfg.leaderName,
+   policyDoctrine: cfg.policyDoctrine,
+   foreignPreference: cfg.foreignPreference,
+  };
+ });
+
+ const rulingParty = allParties.find((p) => p.isRuling) || allParties[0];
+ const oppositionParties = allParties.filter((p) => !p.isRuling);
+
+ let modifiers: RegimeModifier[] = [];
+ if (rulingPartyId === 'communist') {
   modifiers = [
-   { name: '铁血战争动员', type: 'buff', value: '+20% 陆军动员速度', description: '统帅部指令直接下达军团，动员雷厉风行。' },
-   { name: '战备意志凝聚', type: 'buff', value: '+15% 战争支持度', description: '举国体制全力保障国防与前线供应。' },
-   { name: '社会民生压抑', type: 'debuff', value: '-8% 人口自然增长率', description: '战时管制定居与经济自由度受限。' },
+   { name: '五年重工计划', type: 'buff', value: '+15% 军工厂建造与产出', description: '国家统一调配生产要素，工业产能集中攻坚。' },
+   { name: '全民公费医疗', type: 'buff', value: '+12% 人口净增长率', description: '基层社群公费医疗托底，消除平民因病致贫。' },
+   { name: '外汇与边境管制', type: 'debuff', value: '-8% 私人关税贸易盈余', description: '跨境资本流动受到国家外贸部严格管控。' },
   ];
- } else if (regime.includes('社会') || regime.includes('共和')) {
-  rulingPartyName = '人民劳动联合党';
-  doctrine = '重化工业计划 · 耕者有其田 · 集体自卫';
+ } else if (rulingPartyId === 'fascist') {
   modifiers = [
-   { name: '全民公费医疗与福利', type: 'buff', value: '+15% 人口净增长', description: '基层卫生网与全民托底有效降低死亡率。' },
-   { name: '重工业产能攻坚', type: 'buff', value: '+12% 军工厂建造速度', description: '计划调配集中力量办大事。' },
-   { name: '自由市场贸易惰性', type: 'debuff', value: '-6% 关税贸易盈余', description: '对外汇与私人跨境贸易管制严格。' },
+   { name: '总体战全国总动员', type: 'buff', value: '+25% 陆军动员速度', description: '国家统帅部指令直接下达，征兵与装备极速下发。' },
+   { name: '领袖意志凝聚', type: 'buff', value: '+20% 战争支持度', description: '极权宣传激起国民战斗意志，前线士兵无畏冲锋。' },
+   { name: '文官体系受限', type: 'debuff', value: '-10% 民用工厂建造速度', description: '民生资源优先让渡于军工与前线补给。' },
+  ];
+ } else if (rulingPartyId === 'democratic') {
+  modifiers = [
+   { name: '自由市场繁荣', type: 'buff', value: '+15% 商业税收与贸易盈余', description: '民营经济充满活力，跨国贸易与投资络绎不绝。' },
+   { name: '科技思想自由', type: 'buff', value: '+10% 战略科技研发速度', description: '学术自由激发科研院所前沿技术持续突破。' },
+   { name: '议会宣战审议', type: 'debuff', value: '-12% 突发开战准备速度', description: '对外发动战争必须经过两院多轮辩论与投票批准。' },
+  ];
+ } else {
+  // Neutral
+  modifiers = [
+   { name: '秩序与稳定基石', type: 'buff', value: '+12% 稳定度基本盘', description: '中庸保守政策维持社会各阶层平稳运转，不易暴乱。' },
+   { name: '防范外国渗透', type: 'buff', value: '-20% 外国间谍颠覆成功率', description: '审慎的外交审查严密抵御外国思想颠覆。' },
+   { name: '外交扩张消极', type: 'debuff', value: '-15% 宣称制造速度', description: '国民普遍倾向于孤立自保，对对外开疆拓土缺乏热情。' },
   ];
  }
 
- // Multi-party distribution
- const rulingShare = Math.min(78, Math.max(38, Math.round(45 + (stability - 50) * 0.35)));
- const remaining = 100 - rulingShare;
- const opp1 = Math.round(remaining * 0.55);
- const opp2 = Math.round(remaining * 0.32);
- const opp3 = 100 - rulingShare - opp1 - opp2;
-
- const rulingParty: PoliticalParty = {
-  id: 'ruling_main',
-  name: rulingPartyName,
-  ideologyName: ideology,
-  supportPercent: rulingShare,
-  color: '#4f46e5',
-  isRuling: true,
-  leaderName: nation?.ownerUsername || '最高执政官',
-  policyDoctrine: doctrine,
-  foreignPreference: '多边条约与国防防御',
- };
-
- const oppositionParties: PoliticalParty[] = [
-  {
-   id: 'opp_liberal',
-   name: '自由民主同盟',
-   ideologyName: '自由贸易与宪政',
-   supportPercent: opp1,
-   color: '#0284c7',
-   isRuling: false,
-   leaderName: '亚历山大·维尔',
-   policyDoctrine: '减税减负 · 开放外贸 · 缩减军费',
-   foreignPreference: '国际开放与关税减免',
-  },
-  {
-   id: 'opp_nationalist',
-   name: '国防保守党团',
-   ideologyName: '传统保守与强军',
-   supportPercent: opp2,
-   color: '#b45309',
-   isRuling: false,
-   leaderName: '古斯塔夫·海因里希',
-   policyDoctrine: '重装扩军 · 强化边境 · 战略储备',
-   foreignPreference: '单边威慑与战略禁运',
-  },
-  {
-   id: 'opp_radical',
-   name: '青年劳工阵线',
-   ideologyName: '社会福利与改革',
-   supportPercent: opp3,
-   color: '#dc2626',
-   isRuling: false,
-   leaderName: '埃琳娜·瓦西里耶娃',
-   policyDoctrine: '劳工权益 · 免费教育 · 反战同盟',
-   foreignPreference: '不结盟与和平主义',
-  },
- ];
-
  return {
   currentRegime: regime,
-  regimeNameZh,
+  regimeNameZh: regime,
   rulingParty,
   oppositionParties,
-  yearsInPower: 4,
-  governmentEfficiency: Math.min(100, Math.max(40, Math.round(stability * 0.9 + 10))),
-  reformProgress: 68,
+  yearsInPower: nation?.electionsHeldCount ? nation.electionsHeldCount * 4 + 1 : 1,
+  governmentEfficiency: Math.min(100, Math.max(35, Math.round(stability * 0.9 + (rulingParty.supportPercent > 60 ? 10 : 0)))),
+  reformProgress: Math.min(100, 30 + (nation?.electionsHeldCount || 0) * 15 + (nation?.coupsAttemptedCount || 0) * 10),
   modifiers,
  };
 }

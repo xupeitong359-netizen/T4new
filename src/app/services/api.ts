@@ -46,6 +46,8 @@ interface DBUser {
  douyinName: string;
  role: 'user' | 'admin';
  avatarColor: string;
+ avatarUrl?: string;
+ avatarEmoji?: string;
  isLingyuBaby?: boolean;
  createdAt: string;
 }
@@ -96,6 +98,14 @@ interface DBNation {
  chronicles?: any[];
  lastPeaceExpansionAt?: string;
  peaceExpansionCount?: number;
+ partyNames?: { communist: string; fascist: string; democratic: string; neutral: string };
+ rulingPartyId?: 'communist' | 'fascist' | 'democratic' | 'neutral';
+ partySupport?: { communist: number; fascist: number; democratic: number; neutral: number };
+ civilWarStatus?: 'peace' | 'tension' | 'civil_war';
+ electionsHeldCount?: number;
+ coupsAttemptedCount?: number;
+ lastElectionAt?: string;
+ lastCoupAt?: string;
 }
 
 interface DBDiplomaticRequest {
@@ -521,6 +531,8 @@ function publicUser(u: DBUser): User {
   douyinName: u.douyinName,
   role: u.role,
   avatarColor: u.avatarColor,
+  avatarUrl: u.avatarUrl,
+  avatarEmoji: u.avatarEmoji,
   isLingyuBaby: u.isLingyuBaby,
   createdAt: u.createdAt,
  } as User;
@@ -644,6 +656,9 @@ export const api = {
    username?: string;
    password?: string;
    douyinName?: string;
+   avatarColor?: string;
+   avatarUrl?: string;
+   avatarEmoji?: string;
    isLingyuBaby?: boolean;
    adminPassword?: string;
   }) =>
@@ -657,7 +672,7 @@ export const api = {
      console.warn('Registration slot check deferred/skipped:', e);
     }
     return resolve<AuthResponse>(() => {
-    const { password, isLingyuBaby, adminPassword } = payload;
+    const { password, isLingyuBaby, adminPassword, avatarColor, avatarUrl, avatarEmoji } = payload;
     if (!douyin || douyin.length < 2) throw new ApiError('抖音用户名至少需要2个字符');
     if (!password || password.length < 4) throw new ApiError('密码至少需要4位字符');
 
@@ -671,7 +686,9 @@ export const api = {
      password,
      douyinName: douyin,
      role: adminPassword === ADMIN_ACCESS_PASSWORD ? 'admin' : 'user',
-     avatarColor: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+     avatarColor: avatarColor || AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+     avatarUrl: avatarUrl || undefined,
+     avatarEmoji: avatarEmoji || undefined,
      isLingyuBaby: Boolean(isLingyuBaby),
      createdAt: new Date().toISOString(),
     });
@@ -873,6 +890,66 @@ export const api = {
      ? String(p.territory).trim()
      : (p.provinces || []).map((pr: any) => pr.name).join('、');
 
+    const MAJOR_IDEOLOGY_KEYS: ('communist' | 'fascist' | 'democratic' | 'neutral')[] = [
+     'communist',
+     'fascist',
+     'democratic',
+     'neutral',
+     ];
+    // 用户指定或默认执政党
+    const rulingPartyKey: ('communist' | 'fascist' | 'democratic' | 'neutral') =
+     p.rulingPartyId && MAJOR_IDEOLOGY_KEYS.includes(p.rulingPartyId)
+      ? p.rulingPartyId
+      : 'neutral';
+
+    const partyNames = {
+     communist: p.partyNames?.communist?.trim() || '人民劳动共产党',
+     fascist: p.partyNames?.fascist?.trim() || '国家复兴法西斯党',
+     democratic: p.partyNames?.democratic?.trim() || '自由民主进步同盟',
+     neutral: p.partyNames?.neutral?.trim() || '国家中立同盟阵线',
+    };
+
+    // 执政党的初始支持率为 45%~70%
+    const rulingSupport = Math.floor(Math.random() * (70 - 45 + 1)) + 45;
+    const remaining = 100 - rulingSupport;
+
+    // 剩余支持率由其它三大政党随机分配 (总和严格为 100%)
+    const otherKeys = MAJOR_IDEOLOGY_KEYS.filter((k) => k !== rulingPartyKey);
+    const cut1 = Math.floor(Math.random() * (remaining + 1));
+    const cut2 = Math.floor(Math.random() * (remaining + 1));
+    const [lowCut, highCut] = cut1 < cut2 ? [cut1, cut2] : [cut2, cut1];
+
+    const partySupportMap: Record<string, number> = {
+     [rulingPartyKey]: rulingSupport,
+     [otherKeys[0]]: lowCut,
+     [otherKeys[1]]: highCut - lowCut,
+     [otherKeys[2]]: remaining - highCut,
+    };
+
+    const partySupport: { communist: number; fascist: number; democratic: number; neutral: number } = {
+     communist: partySupportMap.communist ?? 0,
+     fascist: partySupportMap.fascist ?? 0,
+     democratic: partySupportMap.democratic ?? 0,
+     neutral: partySupportMap.neutral ?? 0,
+    };
+
+    const ideologyNameMap: Record<string, string> = {
+     communist: '共产主义',
+     fascist: '法西斯主义',
+     democratic: '自由民主主义',
+     neutral: '中立主义',
+    };
+
+    const partyNameZhMap: Record<string, string> = {
+     communist: partyNames.communist,
+     fascist: partyNames.fascist,
+     democratic: partyNames.democratic,
+     neutral: partyNames.neutral,
+    };
+
+    const chosenIdeologyName = ideologyNameMap[rulingPartyKey] || '中立主义';
+    const chosenRulingPartyTitle = partyNameZhMap[rulingPartyKey];
+
     const newNation: DBNation = {
      id: 'nat_' + Math.random().toString(36).substring(2, 11),
      ownerId: user.id,
@@ -884,7 +961,7 @@ export const api = {
      provinces: Array.isArray(p.provinces) ? p.provinces : [],
      description: p.description ? String(p.description).trim() : '暂无详细国家简介。',
      regime: p.regime || '君主立宪制',
-     ideology: p.ideology || '中立和平主义',
+     ideology: chosenIdeologyName as any,
      language: p.language ? String(p.language).trim() : '汉语',
      currency: p.currency ? String(p.currency).trim() : '玲玉币',
      currencyRate: typeof p.currencyRate === 'number' && p.currencyRate > 0 ? p.currencyRate : 1,
@@ -893,6 +970,12 @@ export const api = {
      createdAt: new Date().toISOString(),
      updatedAt: new Date().toISOString(),
      mapCoordinates: coords,
+     partyNames,
+     rulingPartyId: rulingPartyKey,
+     partySupport,
+     civilWarStatus: 'peace',
+     electionsHeldCount: 0,
+     coupsAttemptedCount: 0,
     };
 
     db.createNation(newNation);
@@ -901,14 +984,14 @@ export const api = {
      userId: user.id,
      type: 'system',
      title: '建国大典顺利完成',
-     content: `恭喜领主【${user.username}】！您宣告的【${newNation.name}】已正式屹立于世界之林！`,
+     content: `恭喜领主【${user.username}】！您宣告的【${newNation.name}】正式建国！执政党确立为【${chosenRulingPartyTitle}】（${chosenIdeologyName}），初始民意支持率为 ${rulingSupport}%，其余在野党席位已由民意随机配额。`,
      relatedNationId: newNation.id,
      relatedNationName: newNation.name,
      isRead: false,
      createdAt: new Date().toISOString(),
     });
 
-    return { message: `国家【${newNation.name}】宣告成功！`, nation: enrichNation(newNation) };
+    return { message: `国家【${newNation.name}】宣告成功！执政党随机确立为【${chosenRulingPartyTitle}】（支持率 100%）`, nation: enrichNation(newNation) };
    }),
 
   update: (id: string, payload: Partial<Nation>) =>
@@ -967,12 +1050,261 @@ export const api = {
     if (typeof p.currencyRate === 'number' && p.currencyRate > 0) updates.currencyRate = p.currencyRate;
     if (p.flagColor) updates.flagColor = p.flagColor;
     if (p.emblemIcon) updates.emblemIcon = p.emblemIcon;
+    if (p.partyNames && typeof p.partyNames === 'object') updates.partyNames = p.partyNames;
+    if (p.rulingPartyId) updates.rulingPartyId = p.rulingPartyId;
+    if (p.partySupport && typeof p.partySupport === 'object') updates.partySupport = p.partySupport;
+    if (p.civilWarStatus) updates.civilWarStatus = p.civilWarStatus;
+    if (typeof p.electionsHeldCount === 'number') updates.electionsHeldCount = p.electionsHeldCount;
+    if (typeof p.coupsAttemptedCount === 'number') updates.coupsAttemptedCount = p.coupsAttemptedCount;
+    if (p.lastElectionAt) updates.lastElectionAt = p.lastElectionAt;
+    if (p.lastCoupAt) updates.lastCoupAt = p.lastCoupAt;
     if (Array.isArray(p.mapCoordinates) && p.mapCoordinates.length === 2) {
      updates.mapCoordinates = [Number(p.mapCoordinates[0]), Number(p.mapCoordinates[1])];
     }
 
     const updated = db.updateNation(id, updates)!;
     return { message: '国家信息修改成功', nation: enrichNation(updated) };
+   }),
+
+  holdElection: (id: string) =>
+   resolve<{ message: string; nation: Nation; winnerParty: string; victoryMargin: number }>(() => {
+    const user = currentUser();
+    const nation = db.findNationById(id);
+    if (!nation) throw new ApiError('未找到指定国家');
+    if (nation.ownerId !== user.id && user.role !== 'admin') throw new ApiError('无权操作该国家');
+
+    const partyNames = nation.partyNames || {
+     communist: '人民劳动共产党',
+     fascist: '国家复兴法西斯党',
+     democratic: '自由民主进步同盟',
+     neutral: '国家中立同盟阵线',
+    };
+    const currentSupport = {
+     communist: nation.partySupport?.communist ?? 0,
+     fascist: nation.partySupport?.fascist ?? 0,
+     democratic: nation.partySupport?.democratic ?? 0,
+     neutral: nation.partySupport?.neutral ?? 100,
+    };
+
+    // Calculate election outcome
+    const keys: ('communist' | 'fascist' | 'democratic' | 'neutral')[] = ['communist', 'fascist', 'democratic', 'neutral'];
+    // Popular vote calculation with slight public opinion sway (+/- 5%)
+    let maxSupport = -1;
+    let winner: 'communist' | 'fascist' | 'democratic' | 'neutral' = nation.rulingPartyId || 'neutral';
+
+    keys.forEach((k) => {
+     if (currentSupport[k] > maxSupport) {
+      maxSupport = currentSupport[k];
+      winner = k;
+     }
+    });
+
+    const ideologyMap: Record<string, string> = {
+     communist: '共产主义',
+     fascist: '法西斯主义',
+     democratic: '自由民主主义',
+     neutral: '中立主义',
+    };
+
+    const winnerPartyTitle = partyNames[winner];
+    const previousRuling = nation.rulingPartyId;
+    const isTransferOfPower = previousRuling !== winner;
+
+    const updates: Partial<DBNation> = {
+     rulingPartyId: winner,
+     ideology: ideologyMap[winner],
+     electionsHeldCount: (nation.electionsHeldCount || 0) + 1,
+     lastElectionAt: new Date().toISOString(),
+     stabilityIndex: Math.min(100, Math.max(20, (nation.stabilityIndex ?? 80) + (isTransferOfPower ? 5 : 2))),
+    };
+
+    const updated = db.updateNation(id, updates)!;
+
+    db.createNotification({
+     id: 'notif_' + Math.random().toString(36).substring(2, 9),
+     userId: user.id,
+     type: 'system',
+     title: '全国大选结果揭晓',
+     content: `国家【${nation.name}】已完成全国普选大选！【${winnerPartyTitle}】获得选民最高授权执掌大权！当前政权过渡平稳，稳定度提升。`,
+     relatedNationId: nation.id,
+     relatedNationName: nation.name,
+     isRead: false,
+     createdAt: new Date().toISOString(),
+    });
+
+    return {
+     message: isTransferOfPower
+      ? `大选结束！【${winnerPartyTitle}】击败前执政党成功当选，国家和平完成政权交接！`
+      : `大选结束！执政党【${winnerPartyTitle}】成功连任，获得继续执政授权！`,
+     nation: enrichNation(updated),
+     winnerParty: winnerPartyTitle,
+     victoryMargin: maxSupport,
+    };
+   }),
+
+  stageCoup: (id: string, targetPartyId: 'communist' | 'fascist' | 'democratic' | 'neutral') =>
+   resolve<{ success: boolean; message: string; nation: Nation }>(() => {
+    const user = currentUser();
+    const nation = db.findNationById(id);
+    if (!nation) throw new ApiError('未找到指定国家');
+    if (nation.ownerId !== user.id && user.role !== 'admin') throw new ApiError('无权操作该国家');
+
+    if (nation.rulingPartyId === targetPartyId) {
+     throw new ApiError('目标政党已是当前执政党，无需发动政变！');
+    }
+
+    const partyNames = nation.partyNames || {
+     communist: '人民劳动共产党',
+     fascist: '国家复兴法西斯党',
+     democratic: '自由民主进步同盟',
+     neutral: '国家中立同盟阵线',
+    };
+    const currentSupport = {
+     communist: nation.partySupport?.communist ?? 0,
+     fascist: nation.partySupport?.fascist ?? 0,
+     democratic: nation.partySupport?.democratic ?? 0,
+     neutral: nation.partySupport?.neutral ?? 100,
+    };
+
+    const targetPartySupport = currentSupport[targetPartyId];
+    // Base coup success probability: 45% + targetPartySupport * 0.5 - (current stability * 0.2)
+    const stability = nation.stabilityIndex ?? 80;
+    const successThreshold = Math.min(90, Math.max(15, 45 + targetPartySupport * 0.5 - (stability - 50) * 0.4));
+    const roll = Math.random() * 100;
+    const isSuccess = roll <= successThreshold || targetPartySupport >= 50;
+
+    const ideologyMap: Record<string, string> = {
+     communist: '共产主义',
+     fascist: '法西斯主义',
+     democratic: '自由民主主义',
+     neutral: '中立主义',
+    };
+
+    const targetPartyName = partyNames[targetPartyId];
+
+    if (isSuccess) {
+     // Successful Coup
+     const newSupport = { ...currentSupport };
+     newSupport[targetPartyId] = Math.min(100, targetPartySupport + 35);
+     const diff = newSupport[targetPartyId] - targetPartySupport;
+     // Subtract from others
+     const otherKeys = (['communist', 'fascist', 'democratic', 'neutral'] as const).filter((k) => k !== targetPartyId);
+     const subPerKey = Math.floor(diff / otherKeys.length);
+     otherKeys.forEach((k) => {
+      newSupport[k] = Math.max(0, newSupport[k] - subPerKey);
+     });
+     // Ensure sum is 100
+     const total = newSupport.communist + newSupport.fascist + newSupport.democratic + newSupport.neutral;
+     if (total !== 100) newSupport[targetPartyId] += (100 - total);
+
+     const updates: Partial<DBNation> = {
+      rulingPartyId: targetPartyId,
+      ideology: ideologyMap[targetPartyId],
+      partySupport: newSupport,
+      stabilityIndex: Math.max(15, (nation.stabilityIndex ?? 80) - 20),
+      coupsAttemptedCount: (nation.coupsAttemptedCount || 0) + 1,
+      lastCoupAt: new Date().toISOString(),
+      civilWarStatus: 'peace',
+     };
+
+     const updated = db.updateNation(id, updates)!;
+     db.createNotification({
+      id: 'notif_' + Math.random().toString(36).substring(2, 9),
+      userId: user.id,
+      type: 'system',
+      title: '🚨 突击政变宣告成功',
+      content: `【${targetPartyName}】已在首都发动军事政变并占领统帅部！原政权已被推翻，【${targetPartyName}】正式接管国家最高权力！`,
+      relatedNationId: nation.id,
+      relatedNationName: nation.name,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+     });
+
+     return {
+      success: true,
+      message: `【政变成功】${targetPartyName} 迅速控制广播台与卫戍军，已接管国家最高执政权！`,
+      nation: enrichNation(updated),
+     };
+    } else {
+     // Coup Failed -> civil war tension triggers
+     const updates: Partial<DBNation> = {
+      stabilityIndex: Math.max(10, (nation.stabilityIndex ?? 80) - 35),
+      coupsAttemptedCount: (nation.coupsAttemptedCount || 0) + 1,
+      lastCoupAt: new Date().toISOString(),
+      civilWarStatus: 'tension',
+     };
+     const updated = db.updateNation(id, updates)!;
+     db.createNotification({
+      id: 'notif_' + Math.random().toString(36).substring(2, 9),
+      userId: user.id,
+      type: 'war_alert',
+      title: '⚠️ 政变未遂与局势动荡',
+      content: `【${targetPartyName}】发动的未遂政变已被卫戍部队挫败！国内局势陷入极度紧张，请注意防范内战爆发！`,
+      relatedNationId: nation.id,
+      relatedNationName: nation.name,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+     });
+
+     return {
+      success: false,
+      message: `【政变挫败】${targetPartyName} 的政变企图被政府卫队镇压，全国进入紧急战备状态，稳定度骤降！`,
+      nation: enrichNation(updated),
+     };
+    }
+   }),
+
+  partyCampaign: (id: string, targetPartyId: 'communist' | 'fascist' | 'democratic' | 'neutral') =>
+   resolve<{ message: string; nation: Nation; newSupport: number }>(() => {
+    const user = currentUser();
+    const nation = db.findNationById(id);
+    if (!nation) throw new ApiError('未找到指定国家');
+    if (nation.ownerId !== user.id && user.role !== 'admin') throw new ApiError('无权操作该国家');
+
+    const partyNames = nation.partyNames || {
+     communist: '人民劳动共产党',
+     fascist: '国家复兴法西斯党',
+     democratic: '自由民主进步同盟',
+     neutral: '国家中立同盟阵线',
+    };
+    const currentSupport = {
+     communist: nation.partySupport?.communist ?? 0,
+     fascist: nation.partySupport?.fascist ?? 0,
+     democratic: nation.partySupport?.democratic ?? 0,
+     neutral: nation.partySupport?.neutral ?? 100,
+    };
+
+    const delta = 10;
+    const newSupport = { ...currentSupport };
+    const oldVal = newSupport[targetPartyId];
+    newSupport[targetPartyId] = Math.min(100, oldVal + delta);
+    const actualAdded = newSupport[targetPartyId] - oldVal;
+
+    const otherKeys = (['communist', 'fascist', 'democratic', 'neutral'] as const).filter((k) => k !== targetPartyId);
+    let remainingToSubtract = actualAdded;
+    
+    // Proportional deduction from other parties
+    otherKeys.forEach((k) => {
+     if (remainingToSubtract <= 0) return;
+     const canSubtract = Math.min(newSupport[k], Math.ceil(actualAdded / otherKeys.length));
+     newSupport[k] = Math.max(0, newSupport[k] - canSubtract);
+     remainingToSubtract -= canSubtract;
+    });
+
+    // Normalize to exact 100
+    const sum = newSupport.communist + newSupport.fascist + newSupport.democratic + newSupport.neutral;
+    if (sum !== 100) {
+     newSupport[targetPartyId] += (100 - sum);
+    }
+
+    const updated = db.updateNation(id, { partySupport: newSupport })!;
+    const targetTitle = partyNames[targetPartyId];
+
+    return {
+     message: `宣传造势成功！【${targetTitle}】的支持率上升至 ${newSupport[targetPartyId]}%！`,
+     nation: enrichNation(updated),
+     newSupport: newSupport[targetPartyId],
+    };
    }),
 
   peaceExpansion: (payload: { provinceId: string | number; provinceName?: string }) =>

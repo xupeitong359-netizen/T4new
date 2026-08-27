@@ -6,6 +6,8 @@ export interface User {
  douyinName: string;
  role: UserRole;
  avatarColor?: string;
+ avatarUrl?: string;
+ avatarEmoji?: string;
  isLingyuBaby?: boolean;
  createdAt: string;
 }
@@ -24,6 +26,22 @@ export type RegimeType =
  | '自由城邦自治'
  | '其他特殊政体';
 
+export type MajorIdeology = 'communist' | 'fascist' | 'democratic' | 'neutral';
+
+export interface MajorPartyNames {
+ communist: string;  // 共产主义政党名称
+ fascist: string;    // 法西斯主义政党名称
+ democratic: string; // 民主主义政党名称
+ neutral: string;    // 中立主义政党名称
+}
+
+export interface MajorPartySupport {
+ communist: number;  // 0~100%
+ fascist: number;    // 0~100%
+ democratic: number; // 0~100%
+ neutral: number;    // 0~100%
+}
+
 export type IdeologyType =
  | '中立和平主义'
  | '自由民主主义'
@@ -32,7 +50,11 @@ export type IdeologyType =
  | '民族传统主义'
  | '重商资本主义'
  | '科技理性主义'
- | '激进军国主义';
+ | '激进军国主义'
+ | '共产主义'
+ | '法西斯主义'
+ | '民主主义'
+ | '中立主义';
 
 export interface ProvinceData {
  id: string | number;
@@ -195,6 +217,16 @@ export interface Nation {
   type: DiplomacyType;
   since: string;
  }[];
+  // 1.5 四大政党体系与执政党机制 (四大意识形态：共产主义、法西斯主义、民主主义、中立主义)
+ partyNames?: MajorPartyNames;
+ rulingPartyId?: MajorIdeology;
+ partySupport?: MajorPartySupport;
+ civilWarStatus?: 'peace' | 'tension' | 'civil_war';
+ electionsHeldCount?: number;
+ coupsAttemptedCount?: number;
+ lastElectionAt?: string;
+ lastCoupAt?: string;
+
  // 2. 国家政府与内政法令
  activeDecreeIds?: string[];
  conscriptionLawId?: string; // 征兵法案 id (如 early_mobilization, extensive_conscription)
@@ -226,6 +258,11 @@ export interface Nation {
  researchedTechIds?: string[];
  activeResearchProjects?: ActiveResearchProject[];
  unlockedResearchSlots?: number; // 默认 3，可解锁至 4、5
+
+ // 6.1 国家战略国策树系统 (National Focus Tree)
+ completedFocusIds?: string[];
+ activeFocus?: ActiveNationalFocus | null;
+ policyPoints?: number; // 拥有国策点数 (默认 120)
 
  // 7. 国家经济与财政系统
  currencySymbol?: string;
@@ -626,4 +663,46 @@ export interface AuthResponse {
  token: string;
  user: User;
  myNation?: Nation | null;
+}
+
+// ----------------------------------------------------
+// 10. 国家战略国策树系统 (National Focus & Policy Tree)
+// ----------------------------------------------------
+
+export type FocusCategory = 'root' | 'politics' | 'economy' | 'military' | 'diplomacy' | 'special';
+
+export type FocusStatus = 'completed' | 'in_progress' | 'available' | 'locked';
+
+export interface FocusEffectItem {
+ text: string;
+ type?: 'stability' | 'political_power' | 'economy' | 'military' | 'diplomacy' | 'special';
+ value?: string;
+}
+
+export interface NationalFocusNode {
+ id: string;
+ name: string;
+ subtitle?: string;
+ category: FocusCategory;
+ branchName: string; // 如 "顶层国策", "巩固国家", "经济发展", "军事现代化", "外交策略"
+ tier: number; // 0 (root), 1 (main branch), 2 (sub branch), 3 (deep branch)
+ iconType: string;
+ durationDays: number; // 如 70天
+ costPoints: number; // 消耗国策点数，如 120
+ prerequisites: string[]; // 前置国策 ID
+ mutuallyExclusive?: string[]; // 互斥国策 ID
+ effects: FocusEffectItem[];
+ description: string;
+ // 布局坐标 (用于精准树状图渲染)
+ colIndex?: number;
+ rowIndex?: number;
+}
+
+export interface ActiveNationalFocus {
+ focusId: string;
+ focusName: string;
+ startedAt: string; // ISO 日期
+ durationDays: number;
+ progressDays: number; // 已进行天数
+ costPoints: number;
 }

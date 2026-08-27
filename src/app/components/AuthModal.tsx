@@ -1,7 +1,31 @@
 import { TikTokIcon } from './TikTokIcon';
-import React, { useState } from 'react';
-import { X, ShieldCheck, Lock, Heart, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, ShieldCheck, Lock, Heart, Sparkles, Upload, Image as ImageIcon, Check, UserCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+const PRESET_AVATARS = [
+ { emoji: '👑', label: '统御帝王' },
+ { emoji: '🦅', label: '苍鹰统帅' },
+ { emoji: '🛡️', label: '坚盾卫士' },
+ { emoji: '⚔️', label: '先锋战将' },
+ { emoji: '♟️', label: '地缘棋圣' },
+ { emoji: '🎖️', label: '铁血元帅' },
+ { emoji: '🦁', label: '狂狮霸主' },
+ { emoji: '⚡', label: '雷霆迅击' },
+ { emoji: '🐉', label: '华夏神龙' },
+ { emoji: '⚓', label: '远洋提督' },
+];
+
+const PRESET_COLORS = [
+ '#4f46e5', // Indigo
+ '#0284c7', // Sky blue
+ '#059669', // Emerald
+ '#d97706', // Amber
+ '#dc2626', // Crimson
+ '#7c3aed', // Purple
+ '#db2777', // Pink
+ '#334155', // Slate
+];
 
 interface AuthModalProps {
  isOpen: boolean;
@@ -20,10 +44,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
  const [password, setPassword] = useState('');
  const [isLingyuBaby, setIsLingyuBaby] = useState(false);
  const [adminPassword, setAdminPassword] = useState('');
+ 
+ // Avatar State for Registration
+ const [avatarTab, setAvatarTab] = useState<'preset' | 'upload'>('preset');
+ const [selectedEmoji, setSelectedEmoji] = useState('👑');
+ const [selectedColor, setSelectedColor] = useState('#4f46e5');
+ const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null);
+ const fileInputRef = useRef<HTMLInputElement>(null);
+
  const [error, setError] = useState<string | null>(null);
  const [isLoading, setIsLoading] = useState(false);
 
  if (!isOpen) return null;
+
+ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+   setError('请选择有效的图片文件');
+   return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+   setError('头像图片不能超过 2MB');
+   return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+   setUploadedAvatarUrl(reader.result as string);
+   setAvatarTab('upload');
+   setError(null);
+  };
+  reader.readAsDataURL(file);
+ };
 
  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -45,7 +98,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
      setIsLoading(false);
      return;
     }
-    await register(cleanDouyin, password, cleanDouyin, isLingyuBaby, adminPassword);
+    
+    // Avatar data
+    const avatarData = {
+     avatarColor: selectedColor,
+     avatarUrl: avatarTab === 'upload' && uploadedAvatarUrl ? uploadedAvatarUrl : undefined,
+     avatarEmoji: avatarTab === 'preset' ? selectedEmoji : undefined,
+    };
+
+    await register(cleanDouyin, password, cleanDouyin, isLingyuBaby, adminPassword, avatarData);
    }
    onClose();
   } catch (err: any) {
@@ -135,6 +196,120 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         />
        </div>
       </div>
+
+      {/* Avatar Selection (Required on Register) */}
+      {mode === 'register' && (
+       <div className="p-3 bg-slate-50/90 border border-slate-200/90 rounded-xl space-y-2.5">
+        <div className="flex items-center justify-between">
+         <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+          <UserCircle className="w-3.5 h-3.5 text-indigo-600" />
+          <span>领袖账号头像</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-medium">必填</span>
+         </label>
+         <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg text-[11px]">
+          <button
+           type="button"
+           onClick={() => setAvatarTab('preset')}
+           className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+            avatarTab === 'preset' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+           }`}
+          >
+           预设徽记
+          </button>
+          <button
+           type="button"
+           onClick={() => {
+            setAvatarTab('upload');
+            if (!uploadedAvatarUrl) {
+             fileInputRef.current?.click();
+            }
+           }}
+           className={`px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+            avatarTab === 'upload' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+           }`}
+          >
+           上传头像
+          </button>
+         </div>
+        </div>
+
+        {/* Live Avatar Preview */}
+        <div className="flex items-center gap-3">
+         <div
+          className="w-12 h-12 rounded-full flex items-center justify-center shadow-xs border-2 border-white ring-2 ring-indigo-200 overflow-hidden flex-shrink-0"
+          style={{ backgroundColor: avatarTab === 'preset' ? selectedColor : '#f1f5f9' }}
+         >
+          {avatarTab === 'upload' && uploadedAvatarUrl ? (
+           <img src={uploadedAvatarUrl} alt="Uploaded Avatar" className="w-full h-full object-cover" />
+          ) : (
+           <span className="text-xl select-none">{selectedEmoji}</span>
+          )}
+         </div>
+
+         <div className="flex-1 min-w-0">
+          {avatarTab === 'preset' ? (
+           <div>
+            <div className="text-[11px] text-slate-500 mb-1.5">选择徽记与主题色：</div>
+            {/* Emojis */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-1.5 scrollbar-none">
+             {PRESET_AVATARS.map((item) => (
+              <button
+               key={item.emoji}
+               type="button"
+               title={item.label}
+               onClick={() => setSelectedEmoji(item.emoji)}
+               className={`w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm transition cursor-pointer border ${
+                selectedEmoji === item.emoji
+                 ? 'bg-white border-indigo-500 shadow-xs ring-1 ring-indigo-400 scale-110'
+                 : 'bg-white/80 border-slate-200 hover:bg-white text-slate-700'
+               }`}
+              >
+               {item.emoji}
+              </button>
+             ))}
+            </div>
+
+            {/* Colors */}
+            <div className="flex items-center gap-1.5">
+             {PRESET_COLORS.map((c) => (
+              <button
+               key={c}
+               type="button"
+               onClick={() => setSelectedColor(c)}
+               className={`w-4 h-4 rounded-full transition cursor-pointer flex items-center justify-center ${
+                selectedColor === c ? 'ring-2 ring-offset-1 ring-slate-800 scale-110' : 'hover:opacity-80'
+               }`}
+               style={{ backgroundColor: c }}
+              >
+               {selectedColor === c && <Check className="w-2.5 h-2.5 text-white" />}
+              </button>
+             ))}
+            </div>
+           </div>
+          ) : (
+           <div className="space-y-1.5">
+            <input
+             ref={fileInputRef}
+             type="file"
+             accept="image/*"
+             className="hidden"
+             onChange={handleFileUpload}
+            />
+            <button
+             type="button"
+             onClick={() => fileInputRef.current?.click()}
+             className="w-full py-1.5 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+            >
+             <Upload className="w-3.5 h-3.5 text-indigo-600" />
+             <span>{uploadedAvatarUrl ? '更换本地图片' : '点击上传自定义头像'}</span>
+            </button>
+            <p className="text-[10px] text-slate-400">支持 JPG、PNG 格式（小于 2MB）</p>
+           </div>
+          )}
+         </div>
+        </div>
+       </div>
+      )}
 
       {/* Easter Egg: Lingyu Baby */}
       {mode === 'register' && (

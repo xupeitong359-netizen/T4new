@@ -1,5 +1,5 @@
 import { TikTokIcon } from './TikTokIcon';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
  X,
  MapPin,
@@ -16,6 +16,9 @@ import {
  Swords,
  ScrollText,
  ShieldAlert,
+ Layers,
+ ChevronDown,
+ ChevronUp,
 } from 'lucide-react';
 import { Nation, DiplomacyType } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +37,7 @@ import { CAPACITY_PER_MILITARY_FACTORY_24H, getTotalMilitaryFactories } from '..
 import { getTotalCivilianFactories } from '../lib/economyEngine';
 import { NationalEconomyDashboard } from './NationalEconomyDashboard';
 import { SurrenderStatusCard } from './SurrenderStatusCard';
+import { getCountryTerritoryComponents } from '../lib/territoryComponents';
 
 interface NationModalProps {
  isOpen: boolean;
@@ -64,6 +68,12 @@ export const NationModal: React.FC<NationModalProps> = ({
 }) => {
  const { user, isAdmin, myNation } = useAuth();
  const [modalTab, setModalTab] = useState<'profile' | 'economy'>('profile');
+ const [showTerritoryBlocks, setShowTerritoryBlocks] = useState(false);
+
+ const territoryAnalysis = useMemo(() => {
+  if (!nation) return null;
+  return getCountryTerritoryComponents(nation.id, { nations: [nation] });
+ }, [nation]);
 
  if (!isOpen || !nation) return null;
 
@@ -231,7 +241,7 @@ export const NationModal: React.FC<NationModalProps> = ({
        <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
         <StrategicTerritoryIcon size={16} />
        </div>
-       <div className="min-w-0">
+       <div className="min-w-0 flex-1">
         <span className="text-[11px] text-slate-500 block font-medium leading-none">疆域领土</span>
         <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.territory}</span>
        </div>
@@ -241,7 +251,7 @@ export const NationModal: React.FC<NationModalProps> = ({
        <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
         <StrategicManpowerIcon size={16} />
        </div>
-       <div className="min-w-0">
+       <div className="min-w-0 flex-1">
         <span className="text-[11px] text-slate-500 block font-medium leading-none">国民总人口</span>
         <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.population}</span>
        </div>
@@ -251,12 +261,86 @@ export const NationModal: React.FC<NationModalProps> = ({
        <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
         <MapPin className="w-4 h-4 text-indigo-600" />
        </div>
-       <div className="min-w-0">
+       <div className="min-w-0 flex-1">
         <span className="text-[11px] text-slate-500 block font-medium leading-none">法定行政首都</span>
         <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.capital}</span>
        </div>
       </div>
      </div>
+
+     {/* Territorial Connectivity & Component Blocks Inspector */}
+     {territoryAnalysis && territoryAnalysis.stateCount > 0 && (
+      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-2">
+       <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+         <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
+         <span className="text-xs font-bold text-slate-900">领土连通性判定</span>
+         <span
+          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+           territoryAnalysis.isConnected
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-amber-50 text-amber-800 border-amber-200'
+          }`}
+         >
+          {territoryAnalysis.isConnected
+           ? '全境陆地连通 (1个连续陆块)'
+           : `分割领土 (${territoryAnalysis.componentCount}个独立陆块 · ${territoryAnalysis.enclaves.length}处海外/飞地)`}
+         </span>
+        </div>
+
+        <button
+         type="button"
+         onClick={() => setShowTerritoryBlocks(!showTerritoryBlocks)}
+         className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1 cursor-pointer transition-colors"
+        >
+         <span>{showTerritoryBlocks ? '收起区块详情' : '查看领土区块详情'}</span>
+         {showTerritoryBlocks ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+       </div>
+
+       {showTerritoryBlocks && (
+        <div className="pt-2 border-t border-slate-200/80 space-y-2 max-h-48 overflow-y-auto pr-1">
+         {territoryAnalysis.componentDetails.map((block) => (
+          <div
+           key={`block-${block.index}`}
+           className="p-2 bg-white rounded border border-slate-200/90 text-xs space-y-1 shadow-2xs"
+          >
+           <div className="flex items-center justify-between font-bold text-slate-900">
+            <div className="flex items-center gap-1.5 truncate">
+             <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+               block.isMainland ? 'bg-indigo-600' : 'bg-amber-500'
+              }`}
+             />
+             <span className="truncate">
+              {block.isMainland ? '核心主体领土 (本土)' : `飞地 / 海外领土 #${block.index}`}
+             </span>
+             <span className="text-[10px] font-normal text-slate-500">
+              ({block.representativeName} 等 {block.stateCount} 个地块)
+             </span>
+            </div>
+            <span className="text-[10px] font-mono text-slate-600 shrink-0">
+             人力: {block.totalManpower.toLocaleString()}
+            </span>
+           </div>
+
+           <div className="flex flex-wrap gap-1 pt-0.5">
+            {block.states.map((s) => (
+             <span
+              key={s.id}
+              className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] border border-slate-200/60"
+              title={`ID: ${s.id}, 人口: ${s.manpower.toLocaleString()}`}
+             >
+              {s.chineseName}
+             </span>
+            ))}
+           </div>
+          </div>
+         ))}
+        </div>
+       )}
+      </div>
+     )}
 
      {/* Ruler & Social Accounts Bar */}
      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 flex items-center justify-between gap-2.5">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Landmark, Globe, ScrollText, Flag, Settings, ShieldAlert, Microscope, Swords } from 'lucide-react';
+import { Landmark, Globe, ScrollText, Flag, Settings, ShieldAlert, Microscope, Swords, Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -16,6 +16,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   { id: 'alliances', label: '申请', icon: ScrollText },
   { id: 'world_map', label: '世界地图', icon: Globe, hotkey: 'F1' },
   { id: 'my_nation', label: '国家政府', icon: Flag, hotkey: 'F2' },
+  { id: 'national_focus', label: '国家国策', icon: Compass },
   { id: 'research', label: '国家科研', icon: Microscope, hotkey: 'F3' },
   { id: 'army', label: '陆军指挥', icon: Swords, hotkey: 'F4' },
   { id: 'wars', label: '当前战争', icon: Swords },

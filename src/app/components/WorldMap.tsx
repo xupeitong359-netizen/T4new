@@ -29,12 +29,23 @@ import {
  ShieldCheck,
  Sparkles,
  X,
+ Sun,
+ Moon,
+ Contrast,
 } from 'lucide-react';
 import * as d3Geo from 'd3-geo';
 import { Nation } from '../types';
 import { renderEmblemIcon } from '../lib/icons';
 import { api } from '../services/api';
-import { isTodayUsed, isProvinceAdjacentToNation, getValidExpansionProvinceIds, getValidCreationProvinceIds } from '../lib/mapAdjacency';
+import { isTodayUsed, isProvinceAdjacentToNation, getValidExpansionProvinceIds, getValidCreationProvinceIds, initMapIndex } from '../lib/mapAdjacency';
+import {
+ MAP_THEMES,
+ MapVisualTheme,
+ MapThemeConfig,
+ getSavedMapTheme,
+ saveMapTheme,
+ toModernMapColor,
+} from '../lib/mapThemes';
 import {
  TacticalCivFactoryIcon,
  TacticalMilFactoryIcon,
@@ -232,8 +243,8 @@ interface ProvincePathProps {
  previewFlagColor?: string;
  isHovered: boolean;
  isSelected?: boolean;
- defaultLandColor: string;
- defaultBorderColor: string;
+ mapTheme: MapVisualTheme;
+ themeConfig: MapThemeConfig;
  isMyProvince?: boolean;
  isConstructionMode?: boolean;
  isUnderConstruction?: boolean;
@@ -262,8 +273,8 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
  previewFlagColor = '#6366f1',
  isHovered,
  isSelected = false,
- defaultLandColor,
- defaultBorderColor,
+ mapTheme,
+ themeConfig,
  isMyProvince = false,
  isConstructionMode = false,
  isUnderConstruction = false,
@@ -280,10 +291,10 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
  onUnhover,
  onClick,
 }: ProvincePathProps) {
- let fill = defaultLandColor;
- let stroke = defaultBorderColor;
- let strokeWidth = 0.34;
- let strokeOpacity = 0.34;
+ let fill = themeConfig.land;
+ let stroke = themeConfig.provinceBorder;
+ let strokeWidth = 0.55;
+ let strokeOpacity = 0.95;
  let fillOpacity = 1;
 
  // Custom Map Mode Coloring
@@ -301,7 +312,7 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
   } else if (totalIC >= 1) {
    fill = '#334b44'; // Low IC
   } else {
-   fill = '#1e293b'; // Zero IC
+   fill = mapTheme === 'white' ? '#f1f5f9' : '#1e293b'; // Zero IC
   }
  } else if (mapMode === 'population') {
   const provRecord = ownerNation?.provinces?.find(
@@ -309,21 +320,21 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
   );
   const pop = (provRecord?.population as number) ?? (properties?.manpower as number) ?? (properties?.population as number) ?? 0;
   if (pop >= 6000000) {
-   fill = '#064e3b'; // 600万+ 超大人口核心区: 浓郁深绿
+   fill = '#064e3b';
   } else if (pop >= 3500000) {
-   fill = '#047857'; // 350万-600万: 深翠绿
+   fill = '#047857';
   } else if (pop >= 1800000) {
-   fill = '#059669'; // 180万-350万: 中深绿
+   fill = '#059669';
   } else if (pop >= 900000) {
-   fill = '#10b981'; // 90万-180万: 中翡翠绿
+   fill = '#10b981';
   } else if (pop >= 400000) {
-   fill = '#34d399'; // 40万-90万: 浅绿
+   fill = '#34d399';
   } else if (pop >= 150000) {
-   fill = '#6ee7b7'; // 15万-40万: 较浅绿
+   fill = '#6ee7b7';
   } else if (pop > 0) {
-   fill = '#a7f3d0'; // 15万以下: 最淡浅绿
+   fill = '#a7f3d0';
   } else {
-   fill = '#1e293b';
+   fill = mapTheme === 'white' ? '#f1f5f9' : '#1e293b';
   }
  } else if (mapMode === 'terrain') {
   const terrain = getProvinceTerrain(stateId, name, properties);
@@ -341,93 +352,86 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
   strokeWidth = 1.0;
   strokeOpacity = 0.85;
  } else if (isSelected) {
-  // High-visibility tactical selection highlight (Subtle double-ring aesthetic)
-  fill = ownerNation ? `${ownerNation.flagColor}FA` : 'rgba(99, 102, 241, 0.35)';
-  stroke = '#818cf8';
+  // Clear, elegant selection highlight
+  fill = themeConfig.selectionHighlight;
+  stroke = themeConfig.selectionStroke;
   strokeWidth = 1.8;
   strokeOpacity = 1;
  } else if (isPeacefulExpansionMode) {
   if (isMyProvince) {
-   fill = toMilitaryMapColor(ownerNation?.flagColor || '#4f46e5');
-   stroke = '#34d399';
+   fill = toModernMapColor(ownerNation?.flagColor || '#4f46e5', mapTheme);
+   stroke = '#10b981';
    strokeWidth = 0.8;
-   strokeOpacity = 0.85;
-   fillOpacity = 0.92;
+   strokeOpacity = 0.9;
+   fillOpacity = 0.95;
   } else if (isValidExpansionTarget) {
-   fill = isHovered ? 'rgba(52, 211, 153, 0.72)' : 'rgba(16, 185, 129, 0.38)';
-   stroke = isHovered ? '#ffffff' : '#34d399';
-   strokeWidth = isHovered ? 2.2 : 1.2;
+   fill = isHovered ? 'rgba(52, 211, 153, 0.75)' : 'rgba(16, 185, 129, 0.35)';
+   stroke = isHovered ? '#ffffff' : '#10b981';
+   strokeWidth = isHovered ? 2.0 : 1.2;
    strokeOpacity = 1;
   } else if (ownerNation) {
-   fill = `${ownerNation.flagColor}35`;
-   stroke = isHovered ? '#f87171' : 'rgba(255, 255, 255, 0.15)';
-   strokeWidth = isHovered ? 1.2 : 0.4;
-   strokeOpacity = 0.5;
-  } else if (isHovered) {
-   fill = 'rgba(239, 68, 68, 0.22)';
-   stroke = '#f87171';
-   strokeWidth = 1.2;
-   strokeOpacity = 0.9;
-  }
- } else if (isCreationMode) {
-  if (ownerNation) {
-   fill = `${ownerNation.flagColor}35`;
-   stroke = isHovered ? '#f87171' : 'rgba(255, 255, 255, 0.15)';
-   strokeWidth = isHovered ? 1.2 : 0.4;
-   strokeOpacity = 0.5;
-  } else if (isValidCreationTarget) {
-   fill = isHovered ? `${previewFlagColor}4D` : 'rgba(99, 102, 241, 0.12)';
-   stroke = isHovered ? '#ffffff' : `${previewFlagColor}B3`;
-   strokeWidth = isHovered ? 2.0 : 0.85;
-   strokeOpacity = 0.95;
-  } else if (isHovered) {
-   fill = 'rgba(239, 68, 68, 0.20)';
-   stroke = '#f87171';
-   strokeWidth = 1.4;
-   strokeOpacity = 0.95;
-  }
- } else if (isConstructionMode) {
-  if (isMyProvince) {
-   if (isUnderConstruction) {
-    // Under active construction or clicked: Green Stripes Pattern
-    fill = 'url(#construction-green-stripes)';
-    stroke = '#22c55e';
-    strokeWidth = isHovered ? 2.4 : 1.8;
-    strokeOpacity = 1;
-   } else {
-    // Dynamic building level heatmap color
-    const baseHeatColor = constructionHeatColor || getConstructionHeatmapColor(constructionPercent);
-    fill = isHovered ? '#fef08a' : baseHeatColor;
-    stroke = isHovered ? '#ffffff' : (constructionColor || '#38bdf8');
-    strokeWidth = isHovered ? 2.0 : 1.1;
-    strokeOpacity = 1;
-   }
-  } else if (ownerNation) {
-   fill = `${ownerNation.flagColor}35`;
-   stroke = isHovered ? '#f87171' : 'rgba(255, 255, 255, 0.18)';
-   strokeWidth = isHovered ? 1.2 : 0.55;
+   fill = `${toModernMapColor(ownerNation.flagColor, mapTheme)}60`;
+   stroke = isHovered ? '#f87171' : themeConfig.countryBorder;
+   strokeWidth = isHovered ? 1.0 : 0.4;
    strokeOpacity = 0.6;
   } else if (isHovered) {
-   fill = 'rgba(239, 68, 68, 0.15)';
+   fill = 'rgba(239, 68, 68, 0.2)';
    stroke = '#f87171';
    strokeWidth = 1.0;
    strokeOpacity = 0.9;
   }
- } else if (ownerNation) {
-  if (mapMode === 'political') {
-   fill = toMilitaryMapColor(ownerNation.flagColor);
-   fillOpacity = isHovered ? 0.96 : 0.9;
+ } else if (isCreationMode) {
+  if (ownerNation) {
+   fill = `${toModernMapColor(ownerNation.flagColor, mapTheme)}50`;
+   stroke = isHovered ? '#f87171' : themeConfig.countryBorder;
+   strokeWidth = isHovered ? 1.0 : 0.4;
+   strokeOpacity = 0.6;
+  } else if (isValidCreationTarget) {
+   fill = isHovered ? `${previewFlagColor}4D` : 'rgba(99, 102, 241, 0.15)';
+   stroke = isHovered ? '#ffffff' : `${previewFlagColor}B3`;
+   strokeWidth = isHovered ? 1.8 : 0.85;
+   strokeOpacity = 0.95;
   } else if (isHovered) {
-   fill = toMilitaryMapColor(ownerNation.flagColor);
-   fillOpacity = 0.94;
+   fill = 'rgba(239, 68, 68, 0.18)';
+   stroke = '#f87171';
+   strokeWidth = 1.2;
+   strokeOpacity = 0.9;
   }
-  stroke = isHovered ? '#d9d2be' : 'rgba(17, 27, 33, 0.52)';
-  strokeWidth = isHovered ? 0.85 : 0.34;
-  strokeOpacity = isHovered ? 0.9 : 0.38;
+ } else if (isConstructionMode) {
+  if (isMyProvince) {
+   if (isUnderConstruction) {
+    fill = 'url(#construction-green-stripes)';
+    stroke = '#22c55e';
+    strokeWidth = isHovered ? 2.2 : 1.6;
+    strokeOpacity = 1;
+   } else {
+    const baseHeatColor = constructionHeatColor || getConstructionHeatmapColor(constructionPercent);
+    fill = isHovered ? '#fef08a' : baseHeatColor;
+    stroke = isHovered ? '#ffffff' : (constructionColor || '#38bdf8');
+    strokeWidth = isHovered ? 1.8 : 1.0;
+    strokeOpacity = 1;
+   }
+  } else if (ownerNation) {
+   fill = `${toModernMapColor(ownerNation.flagColor, mapTheme)}60`;
+   stroke = isHovered ? '#f87171' : themeConfig.countryBorder;
+   strokeWidth = isHovered ? 1.0 : 0.45;
+   strokeOpacity = 0.6;
+  } else if (isHovered) {
+   fill = 'rgba(239, 68, 68, 0.15)';
+   stroke = '#f87171';
+   strokeWidth = 0.9;
+   strokeOpacity = 0.85;
+  }
+ } else if (ownerNation) {
+  fill = toModernMapColor(ownerNation.flagColor, mapTheme);
+  fillOpacity = isHovered ? 1 : 0.96;
+  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.countryBorder;
+  strokeWidth = isHovered ? 1.35 : 0.8;
+  strokeOpacity = isHovered ? 1 : 0.92;
  } else if (isHovered) {
-  fill = 'rgba(99, 102, 241, 0.2)';
-  stroke = 'rgba(255, 255, 255, 0.65)';
-  strokeWidth = 0.9;
+  fill = themeConfig.hoverLandFill;
+  stroke = themeConfig.hoverLandStroke;
+  strokeWidth = 1.1;
   strokeOpacity = 1;
  }
 
@@ -453,7 +457,10 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
     strokeLinejoin="round"
     strokeLinecap="round"
     vectorEffect="non-scaling-stroke"
-    className="cursor-pointer transition-colors duration-75"
+    className="cursor-pointer"
+    style={{
+     transition: 'fill 400ms cubic-bezier(0.4, 0, 0.2, 1), stroke 400ms cubic-bezier(0.4, 0, 0.2, 1), fill-opacity 200ms ease',
+    }}
     onMouseEnter={() => onHover(stateId, properties)}
     onMouseLeave={onUnhover}
     onClick={() => onClick(stateId, name, properties)}
@@ -655,7 +662,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  onOpenArmyCommand,
 }) => {
  const [geoData, setGeoData] = useState<any>(null);
- const [mapTheme, setMapTheme] = useState<'strategic' | 'tactical' | 'vintage'>('strategic');
+ const [mapTheme, setMapTheme] = useState<MapVisualTheme>(() => getSavedMapTheme());
+ const currentTheme = MAP_THEMES[mapTheme];
  const [mapMode, setMapMode] = useState<MapModeType>('political');
  const [isPeacefulExpansion, setIsPeacefulExpansion] = useState(false);
  const [showExpansionInfo, setShowExpansionInfo] = useState(false);
@@ -1303,27 +1311,47 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  const [armyGroupPosture, setArmyGroupPosture] = useState<'aggressive' | 'balanced' | 'defensive'>('balanced');
  const [activeOffensiveLaunched, setActiveOffensiveLaunched] = useState<boolean>(false);
 
- // 提取计算当前所有的交战前线与战区进攻矛头 (Frontlines & Spearheads)
+ // 提取计算当前所有的交战双方真实接壤边境与前线特效数据 (True Border Contact Zones & Combat Frontlines)
  const activeFrontlines = useMemo(() => {
   const lines: Array<{
    id: string;
    attackerNation: Nation;
    defenderNation: Nation;
-   fromPos: { x: number; y: number };
-   toPos: { x: number; y: number };
-   midPos: { x: number; y: number };
+   isLandBorder: boolean;
+   frontlineProvinceIds: string[];
+   contactPairs: Array<{
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    midX: number;
+    midY: number;
+   }>;
+   focusPos: { x: number; y: number };
    isPlayerInvolved: boolean;
    isPlayerAttacker: boolean;
    attackerDivisions: number;
    defenderDivisions: number;
   }> = [];
 
-  const nationPosMap = new Map<string, { x: number; y: number }>();
-  nationMarkers.forEach((m) => {
-   nationPosMap.set(m.nation.id, { x: m.x, y: m.y });
+  if (!nations || nations.length === 0) return lines;
+  const mapIdx = initMapIndex();
+  const adj = mapIdx.adjacencyMap;
+
+  // 建立国家拥有的省份列表快速索引
+  const provincesByNation = new Map<string, typeof precalculatedFeatures>();
+  precalculatedFeatures.forEach((feat) => {
+   const owner = provinceOwnership.get(feat.stateId) || provinceOwnership.get(feat.name);
+   if (owner) {
+    let list = provincesByNation.get(owner.id);
+    if (!list) {
+     list = [];
+     provincesByNation.set(owner.id, list);
+    }
+    list.push(feat);
+   }
   });
 
-  // 双方的战争记录会各保存一份；以国家对为单位只绘制一次，避免同一战线出现两根相反的箭头。
   const linesByPair = new Map<string, (typeof lines)[number]>();
 
   nations.forEach((nation) => {
@@ -1332,38 +1360,112 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     const defender = nations.find((n) => n.id === war.withNationId);
     if (!defender) return;
 
-    const fromPos = nationPosMap.get(nation.id);
-    const toPos = nationPosMap.get(defender.id);
-    if (!fromPos || !toPos) return;
+    const pairId = [nation.id, defender.id].sort().join('::');
+    if (linesByPair.has(pairId)) return;
 
-    const midPos = {
-     x: (fromPos.x + toPos.x) / 2,
-     y: (fromPos.y + toPos.y) / 2,
-    };
+    const provsA = provincesByNation.get(nation.id) || [];
+    const provsB = provincesByNation.get(defender.id) || [];
+    if (provsA.length === 0 || provsB.length === 0) return;
+
+    const provsBMap = new Map<string, (typeof provsB)[number]>();
+    provsB.forEach((p) => {
+     provsBMap.set(String(p.stateId), p);
+     if (p.name) provsBMap.set(String(p.name).trim().toLowerCase(), p);
+    });
+
+    const frontlineProvinceSet = new Set<string>();
+    const contactPairs: Array<{
+     fromX: number;
+     fromY: number;
+     toX: number;
+     toY: number;
+     midX: number;
+     midY: number;
+    }> = [];
+
+    provsA.forEach((pa) => {
+     if (!pa.centroid) return;
+     const neighbors = adj.get(String(pa.stateId));
+     if (!neighbors) return;
+     neighbors.forEach((nbrId) => {
+      const pb = provsBMap.get(nbrId);
+      if (pb && pb.centroid) {
+       frontlineProvinceSet.add(String(pa.stateId));
+       frontlineProvinceSet.add(String(pb.stateId));
+       contactPairs.push({
+        fromX: pa.centroid[0],
+        fromY: pa.centroid[1],
+        toX: pb.centroid[0],
+        toY: pb.centroid[1],
+        midX: (pa.centroid[0] + pb.centroid[0]) / 2,
+        midY: (pa.centroid[1] + pb.centroid[1]) / 2,
+       });
+      }
+     });
+    });
+
+    const isLandBorder = contactPairs.length > 0;
+    let focusPos = { x: 0, y: 0 };
+
+    if (isLandBorder) {
+     const sumX = contactPairs.reduce((acc, c) => acc + c.midX, 0);
+     const sumY = contactPairs.reduce((acc, c) => acc + c.midY, 0);
+     focusPos = { x: sumX / contactPairs.length, y: sumY / contactPairs.length };
+    } else {
+     // 双方无直接陆地接壤（跨海或远征战争）：寻找距离最近的一对沿海前哨领土
+     let minDist = Infinity;
+     let bestA = provsA[0];
+     let bestB = provsB[0];
+     for (const pa of provsA) {
+      if (!pa.centroid) continue;
+      for (const pb of provsB) {
+       if (!pb.centroid) continue;
+       const d = Math.hypot(pa.centroid[0] - pb.centroid[0], pa.centroid[1] - pb.centroid[1]);
+       if (d < minDist) {
+        minDist = d;
+        bestA = pa;
+        bestB = pb;
+       }
+      }
+     }
+     if (bestA?.centroid && bestB?.centroid) {
+      frontlineProvinceSet.add(String(bestA.stateId));
+      frontlineProvinceSet.add(String(bestB.stateId));
+      contactPairs.push({
+       fromX: bestA.centroid[0],
+       fromY: bestA.centroid[1],
+       toX: bestB.centroid[0],
+       toY: bestB.centroid[1],
+       midX: (bestA.centroid[0] + bestB.centroid[0]) / 2,
+       midY: (bestA.centroid[1] + bestB.centroid[1]) / 2,
+      });
+      focusPos = {
+       x: (bestA.centroid[0] + bestB.centroid[0]) / 2,
+       y: (bestA.centroid[1] + bestB.centroid[1]) / 2,
+      };
+     }
+    }
 
     const isPlayerInvolved = Boolean(
      myNation && (nation.id === myNation.id || defender.id === myNation.id)
     );
     const isPlayerAttacker = Boolean(myNation && nation.id === myNation.id);
-    const pairId = [nation.id, defender.id].sort().join('::');
+
     const candidate = {
      id: pairId,
      attackerNation: nation,
      defenderNation: defender,
-     fromPos,
-     toPos,
-     midPos,
+     isLandBorder,
+     frontlineProvinceIds: Array.from(frontlineProvinceSet),
+     contactPairs: contactPairs.slice(0, 12),
+     focusPos,
      isPlayerInvolved,
      isPlayerAttacker,
      attackerDivisions: Math.max(12, Math.round(nation.territory.split(',').length * 4)),
      defenderDivisions: Math.max(8, Math.round(defender.territory.split(',').length * 3.5)),
     };
-    const existing = linesByPair.get(pairId);
 
-    // 我方的主动进攻优先作为箭头方向；其余情况保留第一条有效记录。
-    if (!existing || (candidate.isPlayerAttacker && !existing.isPlayerAttacker)) {
-     linesByPair.set(pairId, candidate);
-    }
+    linesByPair.set(pairId, candidate);
    });
   });
 
@@ -1371,14 +1473,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    if (a.isPlayerInvolved !== b.isPlayerInvolved) return a.isPlayerInvolved ? -1 : 1;
    return a.id.localeCompare(b.id);
   });
- }, [nations, nationMarkers, myNation]);
+ }, [nations, precalculatedFeatures, provinceOwnership, myNation]);
 
- // 地图默认只提示与玩家相关的交火；军事视图最多保留 6 条优先战线，防止箭头淹没国界与省份信息。
+ // 地图默认保留优先战线，前线特效在接壤边境与省份边界上集中呈现
  const displayedFrontlines = useMemo(() => {
   const relevant = mapMode === 'military'
    ? activeFrontlines
-   : activeFrontlines.filter((front) => front.isPlayerInvolved);
-  return relevant.slice(0, mapMode === 'military' ? 6 : 3);
+   : activeFrontlines.filter((front) => front.isPlayerInvolved || activeFrontlines.length <= 6);
+  return relevant.slice(0, mapMode === 'military' ? 10 : 6);
  }, [activeFrontlines, mapMode]);
 
  // Avoid O(provinces × (queue + owned provinces)) work during every zoom frame.
@@ -1411,29 +1513,6 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   });
   return result;
  }, [constructionPlacementBuilding, myNation, precalculatedFeatures]);
-
- const themeStyles = {
-  strategic: {
-   water: '#0c131f',
-   land: '#232d38',
-   border: 'rgba(255, 255, 255, 0.08)',
-   grid: 'rgba(255, 255, 255, 0.022)',
-  },
-  tactical: {
-   water: '#090e18',
-   land: '#1c242e',
-   border: 'rgba(255, 255, 255, 0.07)',
-   grid: 'rgba(255, 255, 255, 0.018)',
-  },
-  vintage: {
-   water: '#18202b',
-   land: '#2c353a',
-   border: 'rgba(255, 255, 255, 0.09)',
-   grid: 'rgba(221, 198, 151, 0.03)',
-  },
- };
-
- const currentTheme = themeStyles[mapTheme];
 
  const handleProvinceHover = useCallback((id: any, props: any) => {
   setHoveredProvinceId(id);
@@ -1573,10 +1652,10 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  }, [isPeacefulExpansion, myNation, nations]);
 
  const validCreationIds = useMemo(() => {
-  if (previewState?.mode !== 'territory' || !previewState.provinces || previewState.provinces.length === 0) {
+  if (previewState?.mode !== 'territory') {
    return null;
   }
-  return getValidCreationProvinceIds(previewState.provinces, nations);
+  return getValidCreationProvinceIds(previewState.provinces || [], nations);
  }, [previewState?.mode, previewState?.provinces, nations]);
 
  // Keep the 1000+ province React subtree referentially stable while the camera changes.
@@ -1622,7 +1701,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  const isCreationMode = previewState?.mode === 'territory';
  const isValidCreationTarget = Boolean(
   validCreationIds &&
-  (validCreationIds.has(String(stateId)) || validCreationIds.has(String(name).trim().toLowerCase()))
+  (validCreationIds.has(String(stateId)) ||
+   validCreationIds.has(String(name).trim().toLowerCase()) ||
+   (properties?.name && validCreationIds.has(String(properties.name).trim().toLowerCase())))
  );
 
  return (
@@ -1638,8 +1719,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    previewFlagColor={previewState?.flagColor}
    isHovered={isHovered}
    isSelected={isSelected}
-   defaultLandColor={currentTheme.land}
-   defaultBorderColor={currentTheme.border}
+   mapTheme={mapTheme}
+   themeConfig={currentTheme}
    isMyProvince={isMyProvince}
    isConstructionMode={isConstructionMode}
    isUnderConstruction={isUnderConstruction}
@@ -1660,14 +1741,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   clickedConstructionProvinces,
   constructionByProvince,
   constructionPlacementBuilding,
-  currentTheme.border,
-  currentTheme.land,
+  currentTheme,
   handleProvinceClick,
   handleProvinceHover,
   handleProvinceUnhover,
   hoveredProvinceId,
   isPeacefulExpansion,
   mapMode,
+  mapTheme,
   myNation,
   precalculatedFeatures,
   previewState,
@@ -1682,7 +1763,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   <div
    id="world-map-container"
    ref={containerRef}
-   className="relative w-full h-full bg-slate-950 flex flex-col items-center justify-center select-none overflow-hidden"
+   className="relative w-full h-full flex flex-col items-center justify-center select-none overflow-hidden"
+   style={{
+    backgroundColor: currentTheme.containerBg,
+    transition: 'background-color 400ms cubic-bezier(0.4, 0, 0.2, 1)',
+   }}
   >
    {/* Occupied-province warning (first-come-first-served) */}
    <AnimatePresence>
@@ -1875,32 +1960,32 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     </div>
    </div>
 
-   {/* SECONDARY ROW: Map Modes Tactical Selector (政务 / 工业 / 人口 / 地貌 / 战线) */}
-   <div className="absolute top-[44px] sm:top-[48px] left-2 sm:left-3.5 z-30 flex flex-col gap-1 max-w-[calc(100vw-4rem)] pointer-events-none">
-    <div className="pointer-events-auto flex items-center p-0.5 bg-slate-950/80 text-white backdrop-blur-md border border-white/10 rounded shadow transition-all flex-wrap sm:flex-nowrap">
-     {/* Tactical Map Modes List */}
-     <div className="flex items-center">
-      {[
-       { id: 'political', label: '政务' },
-       { id: 'industrial', label: '工业' },
-       { id: 'population', label: '人口' },
-       { id: 'terrain', label: '地貌' },
-       { id: 'military', label: '战线' },
-      ].map((mode) => (
-       <button
-        key={mode.id}
-        type="button"
-        onClick={() => setMapMode(mode.id as MapModeType)}
-        className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer shrink-0 relative ${
-         mapMode === mode.id
-          ? 'text-white after:absolute after:bottom-0 after:left-1.5 after:right-1.5 after:h-[2px] after:bg-amber-400 after:rounded-full after:shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-          : 'text-slate-400 hover:text-slate-200'
-        }`}
-       >
-        {mode.label}
-       </button>
-      ))}
-     </div>
+    {/* SECONDARY ROW: Map Modes Tactical Selector (政务 / 工业 / 人口 / 地貌 / 战线) */}
+    <div className="absolute top-[44px] sm:top-[48px] left-2 sm:left-3.5 z-30 flex flex-col gap-1 max-w-[calc(100vw-4rem)] pointer-events-none">
+     <div className="pointer-events-auto flex items-center p-0.5 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow-md transition-all flex-wrap sm:flex-nowrap gap-0.5">
+      {/* Tactical Map Modes List */}
+      <div className="flex items-center">
+       {[
+        { id: 'political', label: '政务' },
+        { id: 'industrial', label: '工业' },
+        { id: 'population', label: '人口' },
+        { id: 'terrain', label: '地貌' },
+        { id: 'military', label: '战线' },
+       ].map((mode) => (
+        <button
+         key={mode.id}
+         type="button"
+         onClick={() => setMapMode(mode.id as MapModeType)}
+         className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer shrink-0 relative ${
+          mapMode === mode.id
+           ? 'text-white after:absolute after:bottom-0 after:left-1.5 after:right-1.5 after:h-[2px] after:bg-amber-400 after:rounded-full after:shadow-[0_0_6px_rgba(251,191,36,0.6)]'
+           : 'text-slate-400 hover:text-slate-200'
+         }`}
+        >
+         {mode.label}
+        </button>
+       ))}
+      </div>
 
      {/* Integrated Peaceful Expansion Status Module */}
      <AnimatePresence>
@@ -2032,7 +2117,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     </AnimatePresence>
    </div>
 
-   {/* Floating Vertical HUD Zoom Controls Overlay */}
+   {/* Floating Vertical HUD Toolbar: Theme Switch + Zoom Controls */}
    <motion.div
     key="map-zoom-controls"
     initial={{ opacity: 0, x: 10 }}
@@ -2044,8 +2129,29 @@ export const WorldMap: React.FC<WorldMapProps> = ({
      damping: 24,
      delay: 0.1,
     }}
-    className="absolute top-14 right-2 sm:top-16 sm:right-3.5 z-20 flex flex-col bg-slate-950/80 backdrop-blur-md border border-white/10 rounded overflow-hidden shadow-lg select-none"
+    className="absolute top-14 right-2 sm:top-16 sm:right-3.5 z-20 flex flex-col bg-slate-950/85 backdrop-blur-md border border-white/10 rounded-md overflow-hidden shadow-lg select-none"
    >
+    {/* Theme Switcher Button */}
+    <button
+     id="map-theme-toggle-btn"
+     type="button"
+     onClick={() => {
+      const nextTheme: MapVisualTheme = mapTheme === 'white' ? 'grey' : 'white';
+      setMapTheme(nextTheme);
+      saveMapTheme(nextTheme);
+     }}
+     className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-95 group relative"
+     title={`地图主题: ${mapTheme === 'white' ? '白色系 (点击切换为灰色系)' : '灰色系 (点击切换为白色系)'} · 350ms 平滑材质过渡`}
+     aria-label="切换地图视觉主题"
+    >
+     {mapTheme === 'white' ? (
+      <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform duration-300" />
+     ) : (
+      <Moon className="w-3.5 h-3.5 text-indigo-300 group-hover:-rotate-12 transition-transform duration-300" />
+     )}
+    </button>
+    <div className="w-full h-[1px] bg-white/10" />
+
     <button
      type="button"
      onClick={() => applyZoom(1.3)}
@@ -2091,18 +2197,22 @@ export const WorldMap: React.FC<WorldMapProps> = ({
      viewBox={`0 0 ${width} ${height}`}
      className="w-full h-full block"
      style={{
-      backgroundColor: currentTheme.water,
+      backgroundColor: currentTheme.ocean,
+      transition: 'background-color 400ms cubic-bezier(0.4, 0, 0.2, 1)',
       shapeRendering: 'geometricPrecision',
      }}
     >
      {/* Construction Patterns and Gradients & Spearhead Markers */}
      <defs>
       <pattern id="archival-sea-hatch" width="26" height="26" patternUnits="userSpaceOnUse">
-       <path d="M 0 13 H 26 M 13 0 V 26" stroke="#c7d1c9" strokeOpacity="0.035" strokeWidth="0.55" />
-       <path d="M -4 24 L 24 -4 M 2 30 L 30 2" stroke="#b8c4c1" strokeOpacity="0.02" strokeWidth="0.45" />
+       <path d="M 0 13 H 26 M 13 0 V 26" stroke={currentTheme.seaHatchStroke} strokeOpacity="0.4" strokeWidth="0.5" />
+       <path d="M -4 24 L 24 -4 M 2 30 L 30 2" stroke={currentTheme.seaHatchStroke} strokeOpacity="0.25" strokeWidth="0.4" />
       </pattern>
+      <filter id="selection-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+       <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#38bdf8" floodOpacity="0.55" />
+      </filter>
       <filter id="archival-label-shadow" x="-25%" y="-30%" width="150%" height="170%">
-       <feDropShadow dx="0" dy="0.7" stdDeviation="0.55" floodColor="#101719" floodOpacity="0.72" />
+       <feDropShadow dx="0" dy="0.5" stdDeviation="0.4" floodColor={mapTheme === 'white' ? '#ffffff' : '#0f172a'} floodOpacity="0.8" />
       </filter>
       <pattern
        id="construction-green-stripes"
@@ -2150,9 +2260,48 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       <marker id="spearhead-amber" markerWidth="5" markerHeight="5" refX="4.25" refY="2.5" orient="auto">
        <path d="M 0,0 L 5,2.5 L 0,5 L 1.4,2.5 Z" fill="#fbbf24" />
       </marker>
+
+      {/* Frontline Combat Visual FX Filters & Glows */}
+      <filter id="war-frontline-glow" x="-30%" y="-30%" width="160%" height="160%">
+       <feGaussianBlur stdDeviation="2.2" result="blur" />
+       <feFlood floodColor="#ef4444" floodOpacity="0.85" />
+       <feComposite in2="blur" operator="in" />
+       <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+       </feMerge>
+      </filter>
+      <filter id="war-player-glow" x="-30%" y="-30%" width="160%" height="160%">
+       <feGaussianBlur stdDeviation="2.5" result="blur" />
+       <feFlood floodColor="#38bdf8" floodOpacity="0.9" />
+       <feComposite in2="blur" operator="in" />
+       <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+       </feMerge>
+      </filter>
+      <style>{`
+       @keyframes warFrontlinePulse {
+        0%, 100% { opacity: 0.75; stroke-width: 2.2px; }
+        50% { opacity: 1; stroke-width: 3.4px; }
+       }
+       @keyframes warDashFlow {
+        to { stroke-dashoffset: -28; }
+       }
+       @keyframes warRadarRipple {
+        0% { r: 6; opacity: 0.9; }
+        100% { r: 24; opacity: 0; }
+       }
+      `}</style>
      </defs>
 
-     <rect width={width} height={height} fill="url(#archival-sea-hatch)" pointerEvents="none" />
+     <rect
+      width={width}
+      height={height}
+      fill="url(#archival-sea-hatch)"
+      pointerEvents="none"
+      style={{ transition: 'opacity 400ms ease' }}
+     />
      {/* Main Geo Transformed Group */}
      <g
       style={{
@@ -2163,7 +2312,12 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       }}
      >
       {/* Coordinate Grid lines */}
-      <g stroke={currentTheme.grid} strokeWidth={0.5} strokeDasharray="3 3">
+      <g
+       stroke={currentTheme.grid}
+       strokeWidth={0.5}
+       strokeDasharray="3 3"
+       style={{ transition: 'stroke 400ms cubic-bezier(0.4, 0, 0.2, 1)' }}
+      >
        {[1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6].map((ratio, idx) => {
         const y = ratio * height;
         return <line key={`h-grid-${idx}`} x1={0} y1={y} x2={width} y2={y} />;
@@ -2176,6 +2330,49 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
       {/* High-performance 1000+ Provinces Rendering */}
       <g id="provinces-layer">{provincePathElements}</g>
+
+      {/* War Frontlines Border Glow & Hazard Flow Layer (交战双方边境接壤省份特殊战火光晕与流动警戒线) */}
+      {displayedFrontlines.length > 0 && (
+       <g id="war-frontlines-border-layer" className="pointer-events-none">
+        {displayedFrontlines.flatMap((front) => {
+         return front.frontlineProvinceIds.map((pid) => {
+          const feat = precalculatedFeatures.find((f) => String(f.stateId) === pid);
+          if (!feat?.pathD) return null;
+          const isPlayer = front.isPlayerInvolved;
+          return (
+           <g key={`war-border-effect-${front.id}-${pid}`}>
+            {/* 呼吸发光底晕 */}
+            <path
+             d={feat.pathD}
+             fill={isPlayer ? 'rgba(239, 68, 68, 0.12)' : 'rgba(249, 115, 22, 0.08)'}
+             stroke={isPlayer ? '#ef4444' : '#f97316'}
+             strokeWidth={2.8}
+             strokeOpacity={0.9}
+             filter="url(#war-frontline-glow)"
+             style={{
+              animation: 'warFrontlinePulse 2s ease-in-out infinite',
+             }}
+             vectorEffect="non-scaling-stroke"
+            />
+            {/* 警戒流动虚线 */}
+            <path
+             d={feat.pathD}
+             fill="none"
+             stroke={isPlayer ? (front.isPlayerAttacker ? '#38bdf8' : '#fbbf24') : '#fca5a5'}
+             strokeWidth={1.3}
+             strokeDasharray="5 3"
+             strokeOpacity={0.95}
+             style={{
+              animation: 'warDashFlow 1.2s linear infinite',
+             }}
+             vectorEffect="non-scaling-stroke"
+            />
+           </g>
+          );
+         });
+        })}
+       </g>
+      )}
 
       {/* Construction Mode Active Queued Indicators (只标记正在施工的省份，绝不全屏大批量卡牌堆叠撞车) */}
       {Boolean(constructionPlacementBuilding) && (
@@ -2274,12 +2471,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
          x={label.point[0]}
          y={label.point[1] - ((label.lines.length - 1) * label.fontSize * 0.58)}
          textAnchor="middle"
-         fill="#ece6d8"
+         fill={currentTheme.labelColor}
          fillOpacity={Math.min(0.88, (0.48 + zoom * 0.1) * label.opacity)}
-         style={{ transition: 'fill-opacity 260ms ease' }}
-         stroke="#263035"
-         strokeOpacity="0.52"
-         strokeWidth={Math.max(0.18, label.fontSize * 0.075)}
+         style={{
+          transition: 'fill 400ms cubic-bezier(0.4, 0, 0.2, 1), stroke 400ms cubic-bezier(0.4, 0, 0.2, 1), fill-opacity 260ms ease',
+         }}
+         stroke={currentTheme.labelStroke}
+         strokeOpacity={mapTheme === 'white' ? '0.75' : '0.52'}
+         strokeWidth={Math.max(0.2, label.fontSize * 0.08)}
          paintOrder="stroke"
          fontSize={label.fontSize}
          fontWeight="600"
@@ -2374,112 +2573,169 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        })}
       </g>
 
-      {/* Dynamic Frontlines and Tactical Spearhead Arrows Layer (战线接触面与进攻矛头) */}
+      {/* Dynamic Border Clashes & Tactical Frontline Badges Layer (双方边境接触火线与前线交锋焦点勋章) */}
       {(mapMode === 'military' || displayedFrontlines.length > 0) && (
        <g id="military-frontlines-layer">
+        {/* 1. 双方接壤边境短距交火矛头与阻绝线 */}
         {displayedFrontlines.map((front) => {
          const {
-          fromPos,
-          toPos,
-          midPos,
+          contactPairs,
           isPlayerInvolved,
           isPlayerAttacker,
-          attackerDivisions,
-          defenderDivisions,
+          isLandBorder,
          } = front;
-
-         // 垂向法向量计算防守接触阻绝线
-         const dx = toPos.x - fromPos.x;
-         const dy = toPos.y - fromPos.y;
-         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-         const nx = -dy / len;
-         const ny = dx / len;
-         const barrierHalfWidth = 15;
-         const bx1 = midPos.x - nx * barrierHalfWidth;
-         const by1 = midPos.y - ny * barrierHalfWidth;
-         const bx2 = midPos.x + nx * barrierHalfWidth;
-         const by2 = midPos.y + ny * barrierHalfWidth;
-
-         // 短矢量只表达接触线附近的推进方向，不再跨越整张地图遮挡国名。
-         const arrowStart = { x: fromPos.x + dx * 0.32, y: fromPos.y + dy * 0.32 };
-         const arrowEnd = { x: fromPos.x + dx * 0.68, y: fromPos.y + dy * 0.68 };
-         const ctrlX = midPos.x + nx * 5;
-         const ctrlY = midPos.y + ny * 5;
-         const spearheadPathD = `M ${arrowStart.x} ${arrowStart.y} Q ${ctrlX} ${ctrlY} ${arrowEnd.x} ${arrowEnd.y}`;
 
          const strokeColor = isPlayerAttacker ? '#38bdf8' : '#ef4444';
          const markerId = isPlayerAttacker ? 'url(#spearhead-player)' : 'url(#spearhead-red)';
 
          return (
-          <g key={`frontline-${front.id}`}>
-           {/* 1. 防守接触线 */}
-           <line
-            x1={bx1}
-            y1={by1}
-            x2={bx2}
-            y2={by2}
-            stroke="#0a0f1d"
-            strokeWidth={3}
-            strokeOpacity={0.5}
-            strokeLinecap="round"
-           />
-           <line
-            x1={bx1}
-            y1={by1}
-            x2={bx2}
-            y2={by2}
-            stroke={isPlayerInvolved ? '#fbbf24' : '#fb7185'}
-            strokeWidth={1.35}
-            strokeOpacity={0.82}
-            strokeDasharray="3 3"
-            strokeLinecap="round"
-           />
+          <g key={`frontline-clashes-${front.id}`}>
+           {contactPairs.map((pair, idx) => {
+            const dx = pair.toX - pair.fromX;
+            const dy = pair.toY - pair.fromY;
+            const len = Math.hypot(dx, dy) || 1;
+            const nx = -dy / len;
+            const ny = dx / len;
+            const barrierHalfWidth = 10;
+            const bx1 = pair.midX - nx * barrierHalfWidth;
+            const by1 = pair.midY - ny * barrierHalfWidth;
+            const bx2 = pair.midX + nx * barrierHalfWidth;
+            const by2 = pair.midY + ny * barrierHalfWidth;
 
-           {/* 2. 进攻矛头突破弧线 */}
-           <path
-            d={spearheadPathD}
+            return (
+             <g key={`clash-node-${front.id}-${idx}`}>
+              {/* 防守接触阻绝线 */}
+              <line
+               x1={bx1}
+               y1={by1}
+               x2={bx2}
+               y2={by2}
+               stroke="#0a0f1d"
+               strokeWidth={2.4}
+               strokeOpacity={0.6}
+               strokeLinecap="round"
+               vectorEffect="non-scaling-stroke"
+              />
+              <line
+               x1={bx1}
+               y1={by1}
+               x2={bx2}
+               y2={by2}
+               stroke={isPlayerInvolved ? '#fbbf24' : '#fb7185'}
+               strokeWidth={1.2}
+               strokeOpacity={0.88}
+               strokeDasharray="2.5 2.5"
+               strokeLinecap="round"
+               vectorEffect="non-scaling-stroke"
+              />
+
+              {/* 短距离进攻突破矛头 */}
+              <line
+               x1={pair.fromX + dx * 0.15}
+               y1={pair.fromY + dy * 0.15}
+               x2={pair.toX - dx * 0.15}
+               y2={pair.toY - dy * 0.15}
+               stroke={strokeColor}
+               strokeWidth={isPlayerAttacker ? 2.0 : 1.5}
+               strokeDasharray={activeOffensiveLaunched ? '3 2' : (isLandBorder ? 'none' : '4 3')}
+               markerEnd={markerId}
+               opacity={isPlayerInvolved ? 0.95 : 0.75}
+               vectorEffect="non-scaling-stroke"
+              />
+             </g>
+            );
+           })}
+          </g>
+         );
+        })}
+
+        {/* 2. 前线核心交火焦点战况徽章 (带雷达波纹与即时战略信息，点击平滑聚焦) */}
+        {displayedFrontlines.map((front) => {
+         const {
+          focusPos,
+          id,
+          attackerNation,
+          defenderNation,
+          attackerDivisions,
+          defenderDivisions,
+          isPlayerInvolved,
+          isPlayerAttacker,
+          isLandBorder,
+         } = front;
+
+         if (!focusPos.x || !focusPos.y) return null;
+         const badgeScale = Math.max(0.38, 0.92 / Math.pow(zoom, 0.55));
+
+         return (
+          <g
+           key={`frontline-focal-badge-${id}`}
+           transform={`translate(${focusPos.x}, ${focusPos.y}) scale(${badgeScale})`}
+           className="cursor-pointer"
+           onClick={(e) => {
+            e.stopPropagation();
+            // 点击战火徽标快速聚焦该战线
+            setView((prev) => ({
+             zoom: Math.max(prev.zoom, 2.6),
+             pan: {
+              x: width / 2 - focusPos.x * Math.max(prev.zoom, 2.6),
+              y: height / 2 - focusPos.y * Math.max(prev.zoom, 2.6),
+             },
+            }));
+           }}
+          >
+           {/* 雷达探测扫描脉冲环 */}
+           <circle
+            cx={0}
+            cy={0}
+            r={8}
             fill="none"
-            stroke={strokeColor}
-            strokeWidth={isPlayerAttacker ? 1.9 : 1.45}
-            strokeDasharray={activeOffensiveLaunched ? '4 3' : 'none'}
-            markerEnd={markerId}
-            opacity={isPlayerInvolved ? 0.9 : 0.62}
+            stroke={isPlayerInvolved ? '#f43f5e' : '#f97316'}
+            strokeWidth={1.5}
+            style={{ animation: 'warRadarRipple 1.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite' }}
            />
 
-           {/* 3. 集团军兵力徽标：仅军事视图或我方战线显示，避免常规地图被文字覆盖 */}
-           {(mapMode === 'military' || isPlayerInvolved) && (
-           <g
-            transform={`translate(${midPos.x}, ${midPos.y}) scale(${Math.max(
-             0.35,
-             0.88 / Math.pow(zoom, 0.55)
-            )})`}
-           >
-            <rect
-             x={-30}
-             y={-6}
-             width={60}
-             height={12}
-             rx={3}
-             fill="#090d16"
-             fillOpacity={0.94}
-             stroke={isPlayerAttacker ? '#38bdf8' : '#f43f5e'}
-             strokeWidth={0.8}
-            />
-            <text
-             x={0}
-             y={3}
-             textAnchor="middle"
-             fill="#ffffff"
-             fontSize={5.6}
-             fontWeight="bold"
-             className="pointer-events-none select-none font-sans"
-            >
-             {isPlayerAttacker
-              ? ` [我军矛头] ${attackerDivisions}师`
-              : ` [交火前线] ${attackerDivisions}v${defenderDivisions}师`}
-            </text>
+           {/* 战火核心标牌底板 */}
+           <rect
+            x={-34}
+            y={-9}
+            width={68}
+            height={18}
+            rx={4}
+            fill="#090d16"
+            fillOpacity={0.95}
+            stroke={isPlayerInvolved ? (isPlayerAttacker ? '#38bdf8' : '#f43f5e') : '#fbbf24'}
+            strokeWidth={1.0}
+            filter="drop-shadow(0 2px 5px rgba(0,0,0,0.6))"
+           />
+
+           {/* 战火与交锋图标 */}
+           <g transform="translate(-29, -5.5) scale(0.6)">
+            <Flame className={isPlayerInvolved ? 'text-rose-400' : 'text-amber-400'} />
            </g>
-           )}
+
+           {/* 状态与兵力标签 */}
+           <text
+            x={-16}
+            y={-0.5}
+            fill="#ffffff"
+            fontSize={5.4}
+            fontWeight="900"
+            className="pointer-events-none select-none font-sans"
+           >
+            {isPlayerInvolved
+             ? (isPlayerAttacker ? `⚔ 战线攻势: ${attackerNation.name}` : `⚔ 防线激战: ${attackerNation.name}`)
+             : `⚔ 边境交火: ${attackerNation.name}`}
+           </text>
+           <text
+            x={-16}
+            y={5.8}
+            fill="#94a3b8"
+            fontSize={4.3}
+            fontWeight="bold"
+            className="pointer-events-none select-none font-mono"
+           >
+            {`${attackerDivisions}师 ⚔ ${defenderDivisions}师 (${isLandBorder ? '边境接壤' : '跨海远征'})`}
+           </text>
           </g>
          );
         })}

@@ -13,6 +13,7 @@ import {
  ShieldAlert,
  Settings,
  Flame,
+ Compass,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,6 +42,7 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
   {
    group: '国家治理与内政',
    items: [
+    { id: 'national_focus', label: '国家战略国策树', icon: Compass, badge: '国策', badgeColor: 'bg-amber-600 text-white font-bold' },
     { id: 'governance', label: '国家治理公署', icon: Landmark, hotkey: 'F2' },
     { id: 'politics', label: '政治体制与政党', icon: Scale },
     { id: 'demographics', label: '人口社会动态', icon: Users },

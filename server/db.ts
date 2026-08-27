@@ -9,6 +9,8 @@ export interface DBUser {
   douyinName: string;
   role: 'user' | 'admin';
   avatarColor: string;
+  avatarUrl?: string;
+  avatarEmoji?: string;
   isLingyuBaby?: boolean;
   createdAt: string;
 }
