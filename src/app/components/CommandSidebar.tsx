@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
  Globe,
  Landmark,
@@ -22,14 +22,39 @@ interface CommandSidebarProps {
  setActiveTab: (tab: any) => void;
  activeWarsCount?: number;
  unreadNotifsCount?: number;
+ onOpenAdminPrompt?: () => void;
 }
 
 export const CommandSidebar: React.FC<CommandSidebarProps> = ({
  activeTab,
  setActiveTab,
  activeWarsCount = 0,
+ onOpenAdminPrompt,
 }) => {
  const { isAdmin } = useAuth();
+ const clickCountRef = useRef(0);
+ const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+ const handleBrandClick = () => {
+  clickCountRef.current += 1;
+  if (clickTimerRef.current) {
+   clearTimeout(clickTimerRef.current);
+  }
+
+  if (clickCountRef.current >= 5) {
+   clickCountRef.current = 0;
+   if (onOpenAdminPrompt) {
+    onOpenAdminPrompt();
+   }
+   return;
+  }
+
+  clickTimerRef.current = setTimeout(() => {
+   clickCountRef.current = 0;
+  }, 2500);
+
+  setActiveTab('lobby');
+ };
 
  const navCategories = [
   {
@@ -75,17 +100,31 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
 
  return (
   <aside className="hidden md:flex flex-col w-60 bg-white border-r border-slate-200/90 h-screen sticky top-0 z-30 select-none overflow-y-auto">
-   {/* Sidebar Header */}
+   {/* Sidebar Trademark Header */}
    <div className="p-3.5 border-b border-slate-100 flex items-center justify-between">
-    <div className="flex items-center gap-2">
-     <div className="w-6 h-6 rounded-[3px] bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-      CMD
+    <button
+     type="button"
+     onClick={handleBrandClick}
+     className="flex items-center gap-2.5 text-left w-full rounded-xl p-1 -m-1 cursor-default outline-hidden"
+     title="T3.0测试版本"
+    >
+     <div className="w-11 h-11 flex items-center justify-center flex-shrink-0">
+      <img
+       src="/Tm.png"
+       alt="商标"
+       className="w-full h-full object-contain select-none"
+       draggable={false}
+      />
      </div>
-     <div>
-      <h2 className="text-xs font-bold text-slate-900 leading-tight">战略指挥中心</h2>
-      <p className="text-[10px] text-slate-500 font-mono">NATIONAL OPS CONSOLE</p>
+     <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-1.5">
+       <span className="font-bold text-sm text-slate-800 tracking-tight truncate">
+        T3.0测试版本
+       </span>
+      </div>
+      <p className="text-[10px] text-slate-400 font-mono tracking-wider">NATIONAL TERMINAL</p>
      </div>
-    </div>
+    </button>
    </div>
 
    {/* Navigation Groups */}

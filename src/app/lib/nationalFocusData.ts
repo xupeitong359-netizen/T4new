@@ -204,6 +204,32 @@ export const NATIONAL_FOCUS_NODES: NationalFocusNode[] = [
     rowIndex: 2,
   },
   {
+    id: 'expand_civilian_industry',
+    name: '扩建民用工业基地',
+    subtitle: '民工重点建设',
+    category: 'economy',
+    branchName: '经济发展',
+    tier: 2,
+    iconType: 'factory_city',
+    durationDays: 70,
+    costPoints: 0,
+    prerequisites: ['economic_development'],
+    constructionBonus: {
+      civilianFactories: 2,
+      militaryFactories: 0,
+      targetProvinceType: 'capital',
+    },
+    effects: [
+      { text: '境内直接落成民用工厂: +2座 (实装于首都/核心省份)', type: 'economy', value: '+2 民用工厂' },
+      { text: '民用工厂建造速度: +15.00%', type: 'economy', value: '+15.00%' },
+      { text: '基础设施建造速度: +10.00%', type: 'economy', value: '+10.00%' },
+    ],
+    description:
+      '由国家最高政务院直接拨款建立国家工业建设指挥部，在首都及核心省份直接落成2座现代化大型民用工厂，夯实国家生产力基底。',
+    colIndex: 4,
+    rowIndex: 2,
+  },
+  {
     id: 'industrialization_push',
     name: '工业化推进',
     subtitle: '重工制造与产能',
@@ -262,6 +288,32 @@ export const NATIONAL_FOCUS_NODES: NationalFocusNode[] = [
     ],
     description:
       '颁布规范化兵役动员法令，组建标准常备步兵师与野战重炮旅，建立梯次有序的后备动员体系。',
+    colIndex: 7,
+    rowIndex: 2,
+  },
+  {
+    id: 'military_armament_effort',
+    name: '扩充国防军工兵工厂',
+    subtitle: '军工重点动员',
+    category: 'military',
+    branchName: '军事现代化',
+    tier: 2,
+    iconType: 'gear_factory',
+    durationDays: 70,
+    costPoints: 0,
+    prerequisites: ['military_modernization'],
+    constructionBonus: {
+      civilianFactories: 0,
+      militaryFactories: 2,
+      targetProvinceType: 'core',
+    },
+    effects: [
+      { text: '境内直接落成军工工厂: +2座 (实装于核心战备省份)', type: 'military', value: '+2 军工工厂' },
+      { text: '军用工厂建造速度: +15.00%', type: 'military', value: '+15.00%' },
+      { text: '步兵火炮装备产能: +15.00%', type: 'military', value: '+15.00%' },
+    ],
+    description:
+      '将国家战备生产列为最高国防议程，在境内重要工业省份直接投资落成2座现代标准军工兵工厂，大幅强化枪械火炮与弹药自给能力。',
     colIndex: 7,
     rowIndex: 2,
   },
@@ -545,14 +597,46 @@ export const NATIONAL_FOCUS_NODES: NationalFocusNode[] = [
     durationDays: 70,
     costPoints: 0,
     prerequisites: ['industrialization_push'],
+    constructionBonus: {
+      civilianFactories: 2,
+      militaryFactories: 2,
+      targetProvinceType: 'core',
+    },
     effects: [
+      { text: '境内直接落成: +2座民用工厂 & +2座军工工厂', type: 'economy', value: '+2民工 / +2军工' },
       { text: '钢铁与特种铝材产量: +40.00%', type: 'economy', value: '+40.00%' },
-      { text: '军工工厂建造花费: -15.00%', type: 'economy', value: '-15.00%' },
+      { text: '工厂生产效率上限: +15.00%', type: 'economy', value: '+15.00%' },
     ],
     description:
-      '在核心煤铁富集省份打造大型高炉群与连铸连轧车间，为坦克、战舰与巨型建筑提供源源不断的优质特种钢材。',
+      '统合冶金、机械加工与动力制造，在核心工业省份开辟工业特区，直接交付2座大型民用工厂与2座重型军工工厂。',
     colIndex: 4,
     rowIndex: 3,
+  },
+  {
+    id: 'inland_industrial_evacuation',
+    name: '内陆腹地工业基地',
+    subtitle: '纵深工业布局',
+    category: 'economy',
+    branchName: '经济发展',
+    tier: 3,
+    iconType: 'factory_city',
+    durationDays: 70,
+    costPoints: 0,
+    prerequisites: ['expand_civilian_industry'],
+    constructionBonus: {
+      civilianFactories: 2,
+      militaryFactories: 1,
+      targetProvinceType: 'inland',
+    },
+    effects: [
+      { text: '境内内陆省份直接落成: +2座民用工厂 & +1座军工工厂', type: 'economy', value: '+2民工 / +1军工' },
+      { text: '工厂防轰炸易损度: -25.00%', type: 'military', value: '-25.00%' },
+      { text: '内陆省份物流补给: +20.00%', type: 'economy', value: '+20.00%' },
+    ],
+    description:
+      '向内陆腹地及安全省份延伸工业电网与铁路，直接在二线及腹地省份新建2座民用工厂与1座军工工厂，筑牢战备大后方。',
+    colIndex: 4,
+    rowIndex: 4,
   },
   {
     id: 'defense_industry',
@@ -565,7 +649,13 @@ export const NATIONAL_FOCUS_NODES: NationalFocusNode[] = [
     durationDays: 70,
     costPoints: 0,
     prerequisites: ['industrialization_push'],
+    constructionBonus: {
+      civilianFactories: 0,
+      militaryFactories: 2,
+      targetProvinceType: 'core',
+    },
     effects: [
+      { text: '境内直接落成军工工厂: +2座 (标准化兵工厂)', type: 'military', value: '+2 军工工厂' },
       { text: '军用工厂生产效率: +20.00%', type: 'military', value: '+20.00%' },
       { text: '军备生产线切换损耗: -30.00%', type: 'military', value: '-30.00%' },
     ],
@@ -616,6 +706,32 @@ export const NATIONAL_FOCUS_NODES: NationalFocusNode[] = [
   },
 
   // Military Sub-nodes:
+  {
+    id: 'war_effort_factories',
+    name: '战时军备急速扩产',
+    subtitle: '战时军工冲刺',
+    category: 'military',
+    branchName: '军事现代化',
+    tier: 3,
+    iconType: 'factory_shield',
+    durationDays: 70,
+    costPoints: 0,
+    prerequisites: ['military_armament_effort'],
+    constructionBonus: {
+      civilianFactories: 0,
+      militaryFactories: 3,
+      targetProvinceType: 'core',
+    },
+    effects: [
+      { text: '境内直接落成军工工厂: +3座 (战时紧急配给)', type: 'military', value: '+3 军工工厂' },
+      { text: '军工生产总产能: +20.00%', type: 'military', value: '+20.00%' },
+      { text: '军备动员速度: +25.00%', type: 'military', value: '+25.00%' },
+    ],
+    description:
+      '开启战时全面工业动员法案，以极高效率在境内省份急速扩建落成3座特种军工制造厂，实现全军主战装备换装。',
+    colIndex: 6,
+    rowIndex: 3,
+  },
   {
     id: 'mechanized_divisions',
     name: '装甲突击集群学说',
@@ -966,4 +1082,127 @@ export function getFocusStatus(
   }
 
   return 'locked';
+}
+
+export interface FocusConstructionResult {
+  updatedNation: Nation;
+  civBuilt: number;
+  milBuilt: number;
+  provincesAffected: string[];
+  summaryText: string;
+}
+
+/**
+ * 结算执行建设样国策的工厂建造加成，真实将民工/军工写入省份及国家工业统计
+ */
+export function applyFocusConstructionBonus(
+  nation: Nation,
+  node: NationalFocusNode
+): FocusConstructionResult {
+  if (!node.constructionBonus) {
+    return {
+      updatedNation: nation,
+      civBuilt: 0,
+      milBuilt: 0,
+      provincesAffected: [],
+      summaryText: '',
+    };
+  }
+
+  const civToAdd = node.constructionBonus.civilianFactories || 0;
+  const milToAdd = node.constructionBonus.militaryFactories || 0;
+
+  if (civToAdd === 0 && milToAdd === 0) {
+    return {
+      updatedNation: nation,
+      civBuilt: 0,
+      milBuilt: 0,
+      provincesAffected: [],
+      summaryText: '',
+    };
+  }
+
+  const clonedNation: Nation = JSON.parse(JSON.stringify(nation));
+  const provinces = clonedNation.provinces || [];
+  const provincesAffected: string[] = [];
+
+  if (provinces.length > 0) {
+    const targetType = node.constructionBonus.targetProvinceType || 'core';
+
+    // 创建省份选择优先级打分
+    const scoredProvinces = [...provinces].map((p) => {
+      let score = 0;
+      const isCapital = p.id === clonedNation.capitalId || p.name === clonedNation.capital;
+      const isCore = p.isCore !== false;
+
+      if (targetType === 'capital') {
+        if (isCapital) score += 100;
+        if (isCore) score += 30;
+      } else if (targetType === 'inland') {
+        if (!p.isCoastal) score += 60;
+        if (isCore) score += 30;
+      } else {
+        if (isCore) score += 40;
+        if (isCapital) score += 20;
+      }
+      // 兼顾已有工厂数量，优先向工厂较少的有空余省份铺开
+      const totalF = (p.civilianFactories || 0) + (p.militaryFactories || 0);
+      score -= totalF * 2;
+
+      return { province: p, score };
+    });
+
+    scoredProvinces.sort((a, b) => b.score - a.score);
+
+    // 分配民用工厂
+    let remainingCiv = civToAdd;
+    let civIdx = 0;
+    while (remainingCiv > 0 && scoredProvinces.length > 0) {
+      const target = scoredProvinces[civIdx % scoredProvinces.length].province;
+      target.civilianFactories = (target.civilianFactories || 0) + 1;
+      target.factories = (target.factories || 0) + 1;
+      if (!provincesAffected.includes(target.name)) {
+        provincesAffected.push(target.name);
+      }
+      remainingCiv--;
+      civIdx++;
+    }
+
+    // 分配军用工厂
+    let remainingMil = milToAdd;
+    let milIdx = 0;
+    while (remainingMil > 0 && scoredProvinces.length > 0) {
+      const target = scoredProvinces[milIdx % scoredProvinces.length].province;
+      target.militaryFactories = (target.militaryFactories || 0) + 1;
+      target.factories = (target.factories || 0) + 1;
+      if (!provincesAffected.includes(target.name)) {
+        provincesAffected.push(target.name);
+      }
+      remainingMil--;
+      milIdx++;
+    }
+  }
+
+  // 同步国家全局统计指标
+  clonedNation.civilianFactories = (clonedNation.civilianFactories || 0) + civToAdd;
+  clonedNation.militaryFactories = (clonedNation.militaryFactories || 0) + milToAdd;
+  clonedNation.totalFactories =
+    (clonedNation.totalFactories || 0) + civToAdd + milToAdd;
+
+  const parts: string[] = [];
+  if (civToAdd > 0) parts.push(`+${civToAdd} 座民用工厂`);
+  if (milToAdd > 0) parts.push(`+${milToAdd} 座军用工厂`);
+  const provStr =
+    provincesAffected.length > 0
+      ? `已落成至【${provincesAffected.slice(0, 3).join('、')}${provincesAffected.length > 3 ? '等' : ''}】省份`
+      : '国家工业产能已实时交付';
+  const summaryText = `🏗️ 建设国策【${node.name}】实施生效：${parts.join('、')}，${provStr}！`;
+
+  return {
+    updatedNation: clonedNation,
+    civBuilt: civToAdd,
+    milBuilt: milToAdd,
+    provincesAffected,
+    summaryText,
+  };
 }

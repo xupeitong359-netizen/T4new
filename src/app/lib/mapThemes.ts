@@ -39,8 +39,8 @@ export const MAP_THEMES: Record<MapVisualTheme, MapThemeConfig> = {
     ocean: '#E3EDF6',        // 高级北欧天青水蓝，通透清亮，海陆轮廓一目了然
     land: '#FFFFFF',         // 纯白中立陆地
     countryBorder: '#475569',// 深色主权国界，边界感坚实鲜明
-    provinceBorder: '#CBD5E1',// 清晰省界网格
-    coastline: '#94A3B8',
+    provinceBorder: '#94A3B8',// 清晰省界网格 (微调提升对比度)
+    coastline: '#64748B',
     grid: 'rgba(148, 163, 184, 0.35)',
     seaHatchStroke: 'rgba(148, 163, 184, 0.3)',
     containerBg: '#E3EDF6',
@@ -51,8 +51,8 @@ export const MAP_THEMES: Record<MapVisualTheme, MapThemeConfig> = {
     uiTextMuted: 'text-slate-500',
     uiBtnHover: 'hover:bg-slate-100',
     
-    labelColor: '#0F172A',
-    labelStroke: '#FFFFFF',
+    labelColor: '#1E293B',
+    labelStroke: 'rgba(255, 255, 255, 0.9)',
     
     selectionHighlight: '#BFDBFE',
     selectionStroke: '#2563EB',
@@ -61,30 +61,30 @@ export const MAP_THEMES: Record<MapVisualTheme, MapThemeConfig> = {
   },
   grey: {
     id: 'grey',
-    name: '沉稳冷灰',
-    shortName: '冷灰',
-    ocean: '#BAC7D5',        // 沉稳冷灰蓝海域，强化军事沙盘层次
-    land: '#EAECEF',         // 浅冷灰中立陆地
-    countryBorder: '#1E293B',// 深邃强烈的国家主权边界
-    provinceBorder: '#94A3B8',// 高反差省界
-    coastline: '#64748B',
-    grid: 'rgba(71, 85, 105, 0.38)',
-    seaHatchStroke: 'rgba(100, 116, 139, 0.35)',
-    containerBg: '#BAC7D5',
+    name: '战术深色',
+    shortName: '深色',
+    ocean: '#090e17',        // 战术深海暗夜蓝
+    land: '#141c2b',         // 暗夜深灰黑中立陆地 (Dark Slate)
+    countryBorder: '#94a3b8',// 醒目的白银/浅亮主权国界
+    provinceBorder: '#1e293b',// 细致深色内部省界
+    coastline: '#334155',
+    grid: 'rgba(148, 163, 184, 0.12)',
+    seaHatchStroke: 'rgba(51, 65, 85, 0.35)',
+    containerBg: '#060a12',
     
-    uiPillBg: 'bg-slate-900/90 backdrop-blur-md',
-    uiBorder: 'border-slate-700',
+    uiPillBg: 'bg-slate-950/90 backdrop-blur-md',
+    uiBorder: 'border-slate-800',
     uiText: 'text-slate-100',
     uiTextMuted: 'text-slate-400',
     uiBtnHover: 'hover:bg-slate-800',
     
-    labelColor: '#0F172A',
-    labelStroke: '#EAECEF',
+    labelColor: '#F8FAFC',
+    labelStroke: 'rgba(9, 14, 23, 0.95)',
     
-    selectionHighlight: '#93C5FD',
-    selectionStroke: '#1D4ED8',
-    hoverLandFill: '#CBD5E1',
-    hoverLandStroke: '#0F172A',
+    selectionHighlight: '#1e3a8a',
+    selectionStroke: '#38bdf8',
+    hoverLandFill: '#1f293d',
+    hoverLandStroke: '#38bdf8',
   },
 };
 
@@ -117,7 +117,7 @@ export function saveMapTheme(theme: MapVisualTheme): void {
 export function toModernMapColor(colorHex?: string, theme: MapVisualTheme = 'white'): string {
   const raw = (colorHex || '#6366f1').replace('#', '').trim();
   if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
-    return theme === 'white' ? '#E2E8F0' : '#CBD5E1';
+    return theme === 'white' ? '#E2E8F0' : '#334155';
   }
 
   const r = parseInt(raw.slice(0, 2), 16) / 255;
@@ -142,9 +142,9 @@ export function toModernMapColor(colorHex?: string, theme: MapVisualTheme = 'whi
     const light = 84;
     return `hsl(${Math.round(hue)}, ${sat}%, ${light}%)`;
   } else {
-    // 灰色主题：与冷灰海陆底色强烈呼应的沉稳饱和色（饱和度 52%，明度 76%）
-    const sat = delta === 0 ? 10 : 52;
-    const light = 76;
+    // 战术深色主题：沉稳的暗色调军用沙盘主权着色，避免过度刺眼，让暗色质感贯穿全省份
+    const sat = delta === 0 ? 10 : 45;
+    const light = 26;
     return `hsl(${Math.round(hue)}, ${sat}%, ${light}%)`;
   }
 }

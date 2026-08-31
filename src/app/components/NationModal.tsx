@@ -32,11 +32,12 @@ import {
  StrategicTerritoryIcon,
  StrategicManpowerIcon,
  MilitaryInfantryDivisionIcon,
+ MilitaryArmorDivisionIcon,
 } from '../lib/icons';
 import { CAPACITY_PER_MILITARY_FACTORY_24H, getTotalMilitaryFactories } from '../lib/militaryIndustry';
 import { getTotalCivilianFactories } from '../lib/economyEngine';
+import { calculateNationalDemographics } from '../lib/manpowerEngine';
 import { NationalEconomyDashboard } from './NationalEconomyDashboard';
-import { SurrenderStatusCard } from './SurrenderStatusCard';
 import { getCountryTerritoryComponents } from '../lib/territoryComponents';
 
 interface NationModalProps {
@@ -68,7 +69,6 @@ export const NationModal: React.FC<NationModalProps> = ({
 }) => {
  const { user, isAdmin, myNation } = useAuth();
  const [modalTab, setModalTab] = useState<'profile' | 'economy'>('profile');
- const [showTerritoryBlocks, setShowTerritoryBlocks] = useState(false);
 
  const territoryAnalysis = useMemo(() => {
   if (!nation) return null;
@@ -85,112 +85,120 @@ export const NationModal: React.FC<NationModalProps> = ({
    <div
     className="w-full max-w-4xl my-auto bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden relative text-slate-900 max-h-[90vh] flex flex-col"
    >
+    <div className="flex-1 overflow-y-auto flex flex-col relative">
     {/* Compact Sovereign Header with Subtle Flag Accent & Clean Typographic Hierarchy */}
     <div
-     className="relative w-full min-h-[96px] sm:min-h-[104px] flex items-center px-4 sm:px-6 py-4 shrink-0 overflow-hidden border-b border-slate-200"
-     style={{ backgroundColor: nation.flagColor || '#4f46e5' }}
+     className="relative w-full px-5 py-5 sm:px-6 sm:py-6 shrink-0 overflow-hidden border-b border-slate-800 bg-[#090d16]"
     >
-     {/* Subtle Emblem / Texture watermark in background without overpowering */}
-     {nation.emblemIcon && (nation.emblemIcon.startsWith('data:image') || nation.emblemIcon.startsWith('http')) ? (
-      <img
-       src={nation.emblemIcon}
-       alt=""
-       aria-hidden="true"
-       className="absolute right-0 top-0 h-full w-auto object-cover opacity-15 pointer-events-none mix-blend-overlay"
-      />
-     ) : (
-      <div className="absolute right-4 -bottom-4 pointer-events-none opacity-15">
-       {renderEmblemIcon(nation.emblemIcon, { className: 'w-32 h-32 text-white' })}
-      </div>
-     )}
-     
-     {/* Gradient overlay for readability and strategic texture */}
-     <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-950/40 pointer-events-none" />
+     {/* Ghost Sovereign Emblem / Grand Strategy Watermark */}
+     <div className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 pointer-events-none opacity-[0.06] text-white select-none">
+      <svg width="130" height="130" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
+       <polygon points="50,6 90,26 90,74 50,94 10,74 10,26" />
+       <circle cx="50" cy="50" r="26" strokeDasharray="3 3" />
+       <polygon points="50,22 61,39 82,41 66,56 71,76 50,65 29,76 34,56 18,41 39,39" strokeWidth="0.8" />
+       <line x1="50" y1="6" x2="50" y2="94" strokeWidth="0.6" strokeDasharray="2 2" />
+       <line x1="10" y1="50" x2="90" y2="50" strokeWidth="0.6" strokeDasharray="2 2" />
+      </svg>
+     </div>
 
-     {/* Close button top right - clean circle with subtle dark glass */}
+     {/* Very subtle background tint if flag color exists */}
+     {nation.flagColor && (
+      <div 
+        className="absolute inset-0 opacity-[0.025] pointer-events-none"
+        style={{ backgroundColor: nation.flagColor }}
+      />
+     )}
+
+     {/* Close button top right */}
      <button
       id="btn-close-nation-modal-x"
       type="button"
       onClick={onClose}
       aria-label="关闭面板"
-      className="absolute top-3 right-3 sm:top-3.5 sm:right-4 w-7 h-7 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white/80 hover:text-white flex items-center justify-center transition-all z-20 cursor-pointer border border-white/10 active:scale-95"
+      className="absolute top-3.5 right-3.5 w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all z-20 cursor-pointer"
      >
       <X className="w-4 h-4" />
      </button>
 
      {/* Sovereign Title and Primary Identity Hierarchy */}
-     <div className="relative z-10 text-white flex items-center justify-between w-full pr-8">
-      <div className="min-w-0">
-       {/* Row 1: Section Sub-label + War/Peace State Badge */}
-       <div className="flex items-center gap-2 mb-1">
-        <span className="text-[11px] font-bold text-slate-300 tracking-wider">
-         国家主权公报
-        </span>
-        {isAtWarWithMe ? (
-         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-600/90 text-white border border-rose-400/40 flex items-center gap-1">
-          <StrategicWarfareIcon size={11} /> 交战状态
-         </span>
-        ) : (
-         <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-          <StrategicTreatyIcon size={11} /> 和平邦交
-         </span>
-        )}
-       </div>
+     <div className="relative z-10 w-full pr-10 flex flex-col gap-1">
+       {/* Game-like Status Indicator */}
+       {(isAtWarWithMe || (!isAtWarWithMe && myNation)) && (
+         <div className="flex items-center gap-1.5 mb-0.5">
+          {isAtWarWithMe ? (
+           <div className="inline-flex items-center gap-1.5 text-[11px] font-mono tracking-wider text-rose-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+            <span>交战状态 · AT WAR</span>
+           </div>
+          ) : (
+           <div className="inline-flex items-center gap-1.5 text-[11px] font-mono tracking-wider text-emerald-400/90">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>和平邦交 · PEACE</span>
+           </div>
+          )}
+         </div>
+       )}
 
-       {/* Row 2: Sovereign Nation Name (Level 1 Highest Visual Hierarchy) */}
-       <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white truncate leading-tight">
+       {/* Sovereign Nation Name */}
+       <h2 className="text-2xl sm:text-[30px] font-extrabold tracking-tight text-white truncate leading-tight">
         {nation.name}
        </h2>
 
-       {/* Row 3: Ruler & Capital Inline Summary */}
-       <div className="text-[11px] text-slate-300 mt-1 flex items-center gap-2 flex-wrap">
-        <span className="flex items-center gap-1">
-         <TikTokIcon className="w-3 h-3 text-slate-200" />
-         <strong className="text-white font-semibold">{nation.ownerDouyinName || nation.ownerUsername}</strong>
-        </span>
-        <span className="text-slate-500">·</span>
-        <span>法定首都：<strong className="text-white font-semibold">{nation.capital}</strong></span>
+       {/* Regime · Ideology */}
+       <div className="text-[13px] sm:text-sm flex items-center flex-wrap gap-1.5 mt-0.5 leading-snug">
+         <span className="text-slate-100 font-semibold">{nation.regime || '未知政体'}</span>
+         <span className="text-slate-600 font-bold">·</span>
+         <span className="text-slate-400 font-normal">{nation.ideology || '中立主义'}</span>
        </div>
-      </div>
+
+       {/* Subordinate info: Capital · Creator */}
+       <div className="text-[12px] text-slate-400/80 flex items-center flex-wrap gap-2.5 mt-1">
+        <span>{nation.capital ? nation.capital.replace(/[()]/g, ' · ') : '暂无首都'}</span>
+        <span className="text-slate-700">·</span>
+        <span className="flex items-center gap-1 text-slate-400/70">
+         <TikTokIcon className="w-2.5 h-2.5 opacity-60" />
+         {nation.ownerDouyinName || nation.ownerUsername}
+        </span>
+       </div>
      </div>
     </div>
 
     {/* Modal Navigation Tabs - Strategy Game Tabbar with Underline Indicator */}
-    <div className="flex items-center px-4 sm:px-6 border-b border-slate-200 bg-slate-100/70 shrink-0 gap-6">
+    <div className="sticky top-0 z-30 flex items-center px-4 sm:px-6 border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm shrink-0 gap-8">
      <button
       type="button"
       onClick={() => setModalTab('profile')}
-      className={`relative py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+      className={`relative py-3 text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
        modalTab === 'profile'
         ? 'text-indigo-700'
         : 'text-slate-500 hover:text-slate-800'
       }`}
      >
-      <Landmark className={`w-3.5 h-3.5 ${modalTab === 'profile' ? 'text-indigo-600' : 'text-slate-400'}`} />
-      <span>政体与概况</span>
+      <Landmark className={`w-4 h-4 ${modalTab === 'profile' ? 'text-indigo-600' : 'text-slate-400'}`} />
+      <span>政治与概况</span>
       {modalTab === 'profile' && (
-       <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-indigo-600 rounded-t-sm" />
+       <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-600 rounded-t-sm" />
       )}
      </button>
      <button
       type="button"
       onClick={() => setModalTab('economy')}
-      className={`relative py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+      className={`relative py-3 text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
        modalTab === 'economy'
         ? 'text-amber-700'
         : 'text-slate-500 hover:text-slate-800'
       }`}
      >
-      <CivilianFactoryPlantIcon size={14} className={modalTab === 'economy' ? 'text-amber-600' : 'text-slate-400'} />
+      <CivilianFactoryPlantIcon size={16} className={modalTab === 'economy' ? 'text-amber-600' : 'text-slate-400'} />
       <span>经济与国库</span>
       {modalTab === 'economy' && (
-       <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-amber-600 rounded-t-sm" />
+       <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-amber-600 rounded-t-sm" />
       )}
      </button>
     </div>
 
     {/* Scrollable Body */}
-    <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
+    <div className="p-4 sm:p-5 flex-1 space-y-4">
      {modalTab === 'economy' ? (
       <NationalEconomyDashboard
        nation={nation}
@@ -200,262 +208,241 @@ export const NationModal: React.FC<NationModalProps> = ({
       />
      ) : (
       <>
-     {/* Main Regime & Political Baseline Grid */}
-     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-       <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-0.5 font-medium">
-        <Landmark className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-        政体形式
-       </span>
-       <span className="font-bold text-slate-900 text-xs sm:text-sm block truncate">{nation.regime}</span>
-      </div>
-
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-       <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-0.5 font-medium">
-        <Scale className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-        主流意识形态
-       </span>
-       <span className="font-bold text-slate-900 text-xs sm:text-sm block truncate">{nation.ideology}</span>
-      </div>
-
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-       <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-0.5 font-medium">
-        <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        国家法定货币
-       </span>
-       <span className="font-bold text-slate-900 text-xs sm:text-sm block truncate">{nation.currency}</span>
-      </div>
-
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-       <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-0.5 font-medium">
-        <Languages className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-        官方语言
-       </span>
-       <span className="font-bold text-slate-900 text-xs sm:text-sm block truncate">{nation.language}</span>
-      </div>
-     </div>
-
-     {/* Territory & Population & Capital */}
-     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 flex items-center gap-2.5">
-       <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
-        <StrategicTerritoryIcon size={16} />
-       </div>
-       <div className="min-w-0 flex-1">
-        <span className="text-[11px] text-slate-500 block font-medium leading-none">疆域领土</span>
-        <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.territory}</span>
-       </div>
-      </div>
-
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 flex items-center gap-2.5">
-       <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
-        <StrategicManpowerIcon size={16} />
-       </div>
-       <div className="min-w-0 flex-1">
-        <span className="text-[11px] text-slate-500 block font-medium leading-none">国民总人口</span>
-        <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.population}</span>
-       </div>
-      </div>
-
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 flex items-center gap-2.5">
-       <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-100">
-        <MapPin className="w-4 h-4 text-indigo-600" />
-       </div>
-       <div className="min-w-0 flex-1">
-        <span className="text-[11px] text-slate-500 block font-medium leading-none">法定行政首都</span>
-        <span className="font-bold text-slate-900 text-xs mt-1 block truncate">{nation.capital}</span>
-       </div>
-      </div>
-     </div>
-
-     {/* Territorial Connectivity & Component Blocks Inspector */}
-     {territoryAnalysis && territoryAnalysis.stateCount > 0 && (
-      <div className="p-2.5 bg-slate-50 rounded border border-slate-200 space-y-2">
-       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-         <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
-         <span className="text-xs font-bold text-slate-900">领土连通性判定</span>
-         <span
-          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-           territoryAnalysis.isConnected
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            : 'bg-amber-50 text-amber-800 border-amber-200'
-          }`}
-         >
-          {territoryAnalysis.isConnected
-           ? '全境陆地连通 (1个连续陆块)'
-           : `分割领土 (${territoryAnalysis.componentCount}个独立陆块 · ${territoryAnalysis.enclaves.length}处海外/飞地)`}
-         </span>
-        </div>
-
-        <button
-         type="button"
-         onClick={() => setShowTerritoryBlocks(!showTerritoryBlocks)}
-         className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1 cursor-pointer transition-colors"
-        >
-         <span>{showTerritoryBlocks ? '收起区块详情' : '查看领土区块详情'}</span>
-         {showTerritoryBlocks ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
+     {/* Core Information Section */}
+     <div className="flex flex-col gap-6 sm:gap-8 pt-2 pb-4">
+       
+       {/* State & Politics Overview */}
+       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 border-b border-slate-100 pb-6 sm:pb-8">
+         <div className="flex flex-col gap-1.5">
+           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+             <Landmark className="w-3 h-3"/> 政体
+           </span>
+           <span className="text-base font-bold text-slate-800 leading-tight">{nation.regime || '-'}</span>
+         </div>
+         <div className="flex flex-col gap-1.5">
+           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+             <Scale className="w-3 h-3"/> 意识形态
+           </span>
+           <span className="text-base font-bold text-slate-800 leading-tight">{nation.ideology || '-'}</span>
+         </div>
+         <div className="flex flex-col gap-1.5">
+           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+             <Coins className="w-3 h-3"/> 法定货币
+           </span>
+           <span className="text-base font-bold text-slate-800 leading-tight">{nation.currency || '-'}</span>
+         </div>
+         <div className="flex flex-col gap-1.5">
+           <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+             <Languages className="w-3 h-3"/> 官方语言
+           </span>
+           <span className="text-base font-bold text-slate-800 leading-tight">{nation.language || '-'}</span>
+         </div>
        </div>
 
-       {showTerritoryBlocks && (
-        <div className="pt-2 border-t border-slate-200/80 space-y-2 max-h-48 overflow-y-auto pr-1">
-         {territoryAnalysis.componentDetails.map((block) => (
-          <div
-           key={`block-${block.index}`}
-           className="p-2 bg-white rounded border border-slate-200/90 text-xs space-y-1 shadow-2xs"
-          >
-           <div className="flex items-center justify-between font-bold text-slate-900">
-            <div className="flex items-center gap-1.5 truncate">
-             <span
-              className={`w-2 h-2 rounded-full shrink-0 ${
-               block.isMainland ? 'bg-indigo-600' : 'bg-amber-500'
-              }`}
-             />
-             <span className="truncate">
-              {block.isMainland ? '核心主体领土 (本土)' : `飞地 / 海外领土 #${block.index}`}
-             </span>
-             <span className="text-[10px] font-normal text-slate-500">
-              ({block.representativeName} 等 {block.stateCount} 个地块)
-             </span>
-            </div>
-            <span className="text-[10px] font-mono text-slate-600 shrink-0">
-             人力: {block.totalManpower.toLocaleString()}
-            </span>
+       {/* Territory & Demographics */}
+       <div className="flex flex-col gap-5 sm:gap-6">
+         <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">国家疆域与人口分布</div>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+           
+           {/* Territory Block */}
+           <div className="md:col-span-2 flex flex-col gap-2.5">
+             <div className="flex items-baseline gap-2">
+               <span className="text-3xl font-black text-slate-800 tracking-tight leading-none">{territoryAnalysis?.stateCount || 0}</span>
+               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">个控制地区</span>
+             </div>
+             
+             <div className="text-sm text-slate-600 leading-relaxed font-medium line-clamp-3">
+               {nation.territory || '暂无详细领土记录'}
+             </div>
            </div>
 
-           <div className="flex flex-wrap gap-1 pt-0.5">
-            {block.states.map((s) => (
-             <span
-              key={s.id}
-              className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] border border-slate-200/60"
-              title={`ID: ${s.id}, 人口: ${s.manpower.toLocaleString()}`}
-             >
-              {s.chineseName}
-             </span>
-            ))}
+           {/* Demographics Block */}
+           <div className="flex flex-col gap-6">
+             <div className="flex flex-col gap-1.5">
+               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">总人口</span>
+               {nation.population ? (
+                 <div className="flex items-baseline gap-2">
+                   <span className="text-2xl font-black text-slate-800 tracking-tight leading-none">{nation.population}</span>
+                   <span className="text-[10px] font-bold text-emerald-600 tracking-wider bg-emerald-50 px-1.5 py-0.5 rounded">+0.0%</span>
+                 </div>
+               ) : (
+                 <span className="text-sm font-bold text-slate-300 italic leading-none pt-1">No Data</span>
+               )}
+             </div>
+             <div className="flex flex-col gap-1.5">
+               <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold flex items-center gap-1.5">
+                 <MapPin className="w-3 h-3"/> 行政首都
+               </span>
+               <span className="text-base font-bold text-slate-800 leading-tight">{nation.capital || '-'}</span>
+             </div>
            </div>
-          </div>
-         ))}
-        </div>
-       )}
-      </div>
-     )}
 
-     {/* Ruler & Social Accounts Bar */}
-     <div className="p-2.5 bg-slate-50 rounded border border-slate-200 flex items-center justify-between gap-2.5">
-      <div className="flex items-center gap-2.5">
-       <div className="w-7 h-7 rounded bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 flex items-center justify-center font-bold text-xs shrink-0">
-        <TikTokIcon className="w-4 h-4 text-slate-900" />
+         </div>
        </div>
-       <div>
-        <span className="text-[10px] text-slate-500 block font-medium leading-none">抖音缔造者</span>
-        <span className="font-bold text-slate-900 text-xs leading-tight mt-0.5 block">{nation.ownerDouyinName || nation.ownerUsername}</span>
-       </div>
-      </div>
+
      </div>
 
-     {/* Lore / Description */}
-     {nation.description && (
-      <div className="space-y-1">
-       <h4 className="text-[11px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1">
-        <BookOpen className="w-3.5 h-3.5 text-slate-400" /> 历史纪要与背景介绍
-       </h4>
-       <div className="p-3 bg-slate-50 rounded border border-slate-200 text-slate-700 text-xs leading-relaxed whitespace-pre-wrap">
-        {nation.description}
-       </div>
-      </div>
-     )}
 
-     {/* Military Industry Summary - Refined Deep Slate Command Theme */}
+
+
+
+     {/* National Army & Land Forces Showcase - Strategy Game Roster Theme */}
      {(() => {
-      const totalMil = getTotalMilitaryFactories(nation);
-      const totalCiv = getTotalCivilianFactories(nation);
-      const dailyCap = totalMil * CAPACITY_PER_MILITARY_FACTORY_24H;
-      const lines = nation.militaryIndustry?.productionLines || [];
+      const army = nation.army;
+      const demo = calculateNationalDemographics(nation);
+      const rawDivisions = army?.divisions || [];
+
+      // If no divisions exist, construct a standard standing army preview based on nation's territory/capital
+      const divisions = rawDivisions.length > 0 ? rawDivisions : [
+       {
+        id: 'default-1',
+        name: `${nation.capital || '皇家'}第1禁卫装甲师`,
+        type: '装甲师',
+        corps: '第1中央集团军',
+        provinceName: nation.capital || '主城防区',
+        status: 'ready' as const,
+        manpower: 8500,
+        manpowerMax: 8500,
+        equipmentRate: 100,
+        organization: 100,
+        supply: 100,
+        experience: 3,
+        template: { infantry: 4, artillery: 2, support: 2, armor: 4 },
+        createdAt: nation.createdAt,
+       },
+       {
+        id: 'default-2',
+        name: '国防第3摩托化步兵师',
+        type: '摩托化师',
+        corps: '第1中央集团军',
+        provinceName: '西部战区',
+        status: 'ready' as const,
+        manpower: 9000,
+        manpowerMax: 9000,
+        equipmentRate: 100,
+        organization: 95,
+        supply: 98,
+        experience: 2,
+        template: { infantry: 6, artillery: 2, support: 2, armor: 0 },
+        createdAt: nation.createdAt,
+       },
+       {
+        id: 'default-3',
+        name: '边境守备第7步兵师',
+        type: '步兵师',
+        corps: '北方边防守备区',
+        provinceName: '边境警戒区',
+        status: 'garrison' as const,
+        manpower: 10000,
+        manpowerMax: 10000,
+        equipmentRate: 98,
+        organization: 90,
+        supply: 95,
+        experience: 1,
+        template: { infantry: 9, artillery: 2, support: 1, armor: 0 },
+        createdAt: nation.createdAt,
+       },
+      ];
+
+      const totalDivisionsCount = rawDivisions.length > 0 ? rawDivisions.length : divisions.length;
+      const activeDutyManpower = rawDivisions.length > 0 
+       ? rawDivisions.reduce((sum, d) => sum + (d.manpower || 0), 0)
+       : divisions.reduce((sum, d) => sum + (d.manpower || 0), 0);
+      const reserveManpower = demo.availableReserve;
 
       return (
-       <div className="p-3.5 bg-[#0f172a] text-white rounded border border-slate-700/80 shadow-2xs space-y-3">
-        {/* Header: Title Left + 24h Capacity Right on same row */}
+       <div className="p-3.5 bg-[#090d16] text-white rounded border border-slate-800 shadow-2xs space-y-3">
+        {/* Header: Title Left + Manpower / Conscription Right */}
         <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800">
          <div className="flex items-center gap-1.5">
-          <MilitaryFactoryPlantIcon size={16} className="text-amber-400" />
-          <span className="text-xs font-bold text-slate-100">国防军事工业概况</span>
+          <MilitaryInfantryDivisionIcon size={16} className="text-amber-400" />
+          <span className="text-xs font-bold text-slate-100">国防陆军现役编制</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-slate-400 border border-slate-800">
+           {demo.activeLaw.name}
+          </span>
          </div>
-         <div className="text-[11px] text-slate-300">
-          24h 日总军用产能：<strong className="text-amber-400 font-bold font-mono">{dailyCap.toLocaleString()} 点</strong>
+         <div className="text-[11px] text-slate-400">
+          常备军总员额：<strong className="text-amber-400 font-bold font-mono">{activeDutyManpower.toLocaleString()} 人</strong>
          </div>
         </div>
 
         {/* 3 Core Metric Blocks: High density & crisp numeric hierarchy */}
         <div className="grid grid-cols-3 gap-2 text-center">
          <div className="p-2 bg-slate-900/90 rounded border border-slate-800">
-          <span className="text-slate-400 block text-[10px] leading-tight">军事实力</span>
+          <span className="text-slate-400 block text-[10px] leading-tight">现役师团</span>
           <span className="text-sm sm:text-base font-black text-amber-400 mt-1 block font-mono">
-           {totalMil} <span className="text-[11px] font-normal text-slate-400">座</span>
+           {totalDivisionsCount} <span className="text-[11px] font-normal text-slate-400">个师</span>
           </span>
          </div>
          <div className="p-2 bg-slate-900/90 rounded border border-slate-800">
-          <span className="text-slate-400 block text-[10px] leading-tight">民用工</span>
+          <span className="text-slate-400 block text-[10px] leading-tight">在役总兵力</span>
           <span className="text-sm sm:text-base font-black text-sky-400 mt-1 block font-mono">
-           {totalCiv} <span className="text-[11px] font-normal text-slate-400">座</span>
+           {activeDutyManpower.toLocaleString()} <span className="text-[11px] font-normal text-slate-400">人</span>
           </span>
          </div>
          <div className="p-2 bg-slate-900/90 rounded border border-slate-800">
-          <span className="text-slate-400 block text-[10px] leading-tight">运转生产线</span>
+          <span className="text-slate-400 block text-[10px] leading-tight">后备动员兵力</span>
           <span className="text-sm sm:text-base font-black text-emerald-400 mt-1 block font-mono">
-           {lines.length} <span className="text-[11px] font-normal text-slate-400">条</span>
+           {reserveManpower > 10000 ? `${(reserveManpower / 10000).toFixed(1)}万` : reserveManpower.toLocaleString()} <span className="text-[11px] font-normal text-slate-400">人</span>
           </span>
          </div>
         </div>
 
-        {/* Production lines table list */}
-        {lines.length > 0 && (
-         <div className="space-y-1.5 pt-1">
-          <span className="text-[11px] text-slate-400 block">主要生产线日产速率：</span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-           {lines.slice(0, 4).map((l, idx) => (
-            <div key={idx} className="px-2.5 py-1.5 bg-slate-900/80 rounded border border-slate-800 flex items-center justify-between gap-2">
-             <span className="truncate font-medium text-slate-200 text-xs flex items-center gap-1.5">
-              {renderEquipmentTacticalIcon(l.category, { size: 13, className: 'text-amber-400 shrink-0' })}
-              <span className="truncate">{l.equipmentName}</span>
-             </span>
-             <span className="text-emerald-400 font-bold font-mono text-xs whitespace-nowrap">
-              +{l.dailyOutput.toLocaleString()} /天
-             </span>
-            </div>
-           ))}
-          </div>
+        {/* Deployed Formations & Division Roster */}
+        <div className="space-y-1.5 pt-0.5">
+         <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <span>部署序列与主力师团：</span>
+          <span className="text-[10px] text-slate-500 font-mono">前 {Math.min(4, divisions.length)} 个战术编制</span>
          </div>
-        )}
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {divisions.slice(0, 4).map((div) => {
+           const isArmor = div.type.includes('装甲') || div.type.includes('坦克');
+           const isMotorized = div.type.includes('摩托') || div.type.includes('机械');
+           const statusText = div.status === 'training' ? '训练中' : div.status === 'fighting' ? '交战中' : div.status === 'garrison' ? '驻防' : '战备就绪';
+           const statusColor = div.status === 'fighting' 
+            ? 'text-rose-400 border-rose-500/30 bg-rose-950/40' 
+            : div.status === 'training' 
+            ? 'text-sky-300 border-sky-500/30 bg-sky-950/40' 
+            : 'text-emerald-400 border-emerald-500/30 bg-emerald-950/40';
+
+           return (
+            <div key={div.id} className="px-2.5 py-1.5 bg-slate-900/80 rounded border border-slate-800 flex items-center justify-between gap-2">
+             <div className="flex items-center gap-2 min-w-0">
+              <div className="w-5 h-5 rounded bg-slate-800 flex items-center justify-center shrink-0 text-amber-400">
+               {isArmor ? (
+                <MilitaryArmorDivisionIcon size={13} />
+               ) : isMotorized ? (
+                <MilitaryArmorDivisionIcon size={13} className="text-sky-400" />
+               ) : (
+                <MilitaryInfantryDivisionIcon size={13} className="text-amber-400" />
+               )}
+              </div>
+              <div className="min-w-0 flex flex-col">
+               <span className="truncate font-semibold text-slate-200 text-xs leading-tight">
+                {div.name}
+               </span>
+               <span className="text-[10px] text-slate-500 truncate mt-0.5">
+                {div.provinceName || '防区'} · {div.type}
+               </span>
+              </div>
+             </div>
+
+             <div className="flex flex-col items-end shrink-0 gap-0.5">
+              <span className={`px-1 py-0.2 rounded text-[9px] font-mono border ${statusColor}`}>
+               {statusText}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">
+               {(div.manpower || 0).toLocaleString()} 人
+              </span>
+             </div>
+            </div>
+           );
+          })}
+         </div>
+        </div>
        </div>
       );
      })()}
-
-     {/* National Surrender & Capitulation Tendency Engine */}
-     <SurrenderStatusCard
-      nation={nation}
-      showCapitulateAction={isMyNation && (nation.activeWars || []).length > 0 && !nation.isCapitulated}
-      onCapitulate={async (n) => {
-       if (!window.confirm(`确定要宣布【${n.name}】无条件投降并签署停火公报吗？`)) return;
-       try {
-        const res = await fetch('/api/diplomacy/capitulate', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ targetNationId: n.id }),
-        });
-        if (res.ok) {
-         const data = await res.json();
-         if (data.nation && onUpdateNation) {
-          onUpdateNation(data.nation);
-         }
-         showToast?.(`【${n.name}】已正式宣告停战投降！`);
-        }
-       } catch (e) {
-        console.error(e);
-       }
-      }}
-     />
 
      {/* Wars & Treaties section */}
      <div className="space-y-3 mb-2">
@@ -551,13 +538,37 @@ export const NationModal: React.FC<NationModalProps> = ({
     </>
    )}
   </div>
+  </div>
 
     {/* Diplomatic Command Action Suite */}
-    <div id="nation-modal-footer" className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-     {/* Left: Administrative actions (My Nation / Admin) */}
-     <div className="flex items-center gap-2">
-      {isMyNation && (
-       <>
+    <div id="nation-modal-footer" className="shrink-0 z-40 px-6 py-4 border-t border-slate-200/60 bg-white flex flex-col sm:flex-row items-center justify-between gap-4">
+     
+     {isMyNation ? (
+       <div className="w-full flex items-center justify-between sm:justify-end gap-3">
+        <button
+         id="btn-delete-nation-profile"
+         type="button"
+         disabled={(nation.activeWars || []).length > 0}
+         onClick={() => {
+          if ((nation.activeWars || []).length > 0) {
+           alert('处于战争状态时无法解散国家！必须先达成和平停战协议或宣布投降。');
+           return;
+          }
+          if (window.confirm('您确定要注销此国家吗？此操作不可撤销。')) {
+            onClose();
+            onDelete(nation);
+          }
+         }}
+         className={`w-9 h-9 flex items-center justify-center rounded transition-colors ${
+          (nation.activeWars || []).length > 0
+           ? 'text-slate-300 cursor-not-allowed opacity-50'
+           : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer active:scale-95'
+         }`}
+         title={(nation.activeWars || []).length > 0 ? '处于战争状态时无法解散国家' : '注销国家'}
+        >
+         <Trash2 className="w-4 h-4" />
+        </button>
+        
         <button
          id="btn-edit-nation-profile"
          type="button"
@@ -565,126 +576,78 @@ export const NationModal: React.FC<NationModalProps> = ({
           onClose();
           onEdit(nation);
          }}
-         className="h-8 px-2.5 bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium text-xs rounded border border-slate-300 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-slate-400 focus-visible:outline-none"
+         className="px-6 h-9 bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm rounded shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer active:scale-95 whitespace-nowrap"
         >
-         <Edit3 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-         <span>编辑国家</span>
+         编辑国家概况
         </button>
-        <button
-         id="btn-delete-nation-profile"
-         type="button"
-         onClick={() => {
-          onClose();
-          onDelete(nation);
-         }}
-         className="h-8 px-2.5 bg-white hover:bg-rose-50 active:bg-rose-100 text-rose-700 font-medium text-xs rounded border border-rose-200 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-rose-400 focus-visible:outline-none"
-        >
-         <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-         <span>注销国家</span>
-        </button>
-       </>
-      )}
-      {isAdmin && !isMyNation && (
-       <button
-        id="btn-admin-delete-nation"
-        type="button"
-        onClick={() => {
-         onClose();
-         onDelete(nation);
-        }}
-        className="h-8 px-2.5 bg-white hover:bg-rose-50 active:bg-rose-100 text-rose-700 font-medium text-xs rounded border border-rose-200 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-rose-400 focus-visible:outline-none"
-       >
-        <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-        <span>管理员注销</span>
-       </button>
-      )}
-     </div>
-
-     {/* Right: Unified Foreign Affairs Command Panel */}
-     <div className="flex flex-col gap-1.5 sm:ml-auto">
-      {!isMyNation ? (
-       <div className="p-1.5 bg-slate-200/50 rounded border border-slate-300/80 shadow-2xs flex flex-col gap-1.5">
-        {/* Row 1: Regular & Special Geopolitical Actions */}
-        <div className="grid grid-cols-2 gap-1.5">
-         {onOpenAlliance && (
-          <button
-           id="btn-open-embassy-lendlease"
-           type="button"
-           onClick={() => {
-            onClose();
-            onOpenAlliance(nation);
-           }}
-           className="h-8 px-2.5 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-medium text-xs rounded border border-slate-300 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-slate-400 focus-visible:outline-none"
-          >
-           <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-           <span>使馆/租借法案</span>
-          </button>
-         )}
-         {onOpenDispute && (
-          <button
-           id="btn-open-territorial-dispute"
-           type="button"
-           onClick={() => {
-            onClose();
-            onOpenDispute(nation);
-           }}
-           className="h-8 px-2.5 bg-white hover:bg-amber-50/50 active:bg-amber-100/50 text-slate-800 font-medium text-xs rounded border border-amber-300/90 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-amber-400 focus-visible:outline-none"
-          >
-           <Swords className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-           <span>领土争端/沙盘推演</span>
-          </button>
-         )}
-        </div>
-
-        {/* Row 2: Standard Treaty, War Ultimatum (Sole Danger Primary), and Dismiss */}
-        <div className="grid grid-cols-3 gap-1.5">
+       </div>
+     ) : (
+       <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        
+        {/* Admin Delete */}
+        {isAdmin && !isMyNation ? (
          <button
-          id="btn-open-diplomacy-peace"
+          id="btn-admin-delete-nation"
           type="button"
+          disabled={(nation.activeWars || []).length > 0}
           onClick={() => {
+           if ((nation.activeWars || []).length > 0) {
+            alert('该国当前处于战时交火状态，处于战争状态时无法解散国家！');
+            return;
+           }
            onClose();
-           onOpenDiplomacy(nation, 'peace');
+           onDelete(nation);
           }}
-          className="h-8 px-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-medium text-xs rounded border border-slate-300 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-slate-400 focus-visible:outline-none"
+          className={`h-9 px-3 font-medium text-sm rounded border transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap ${
+           (nation.activeWars || []).length > 0
+            ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+            : 'bg-white hover:bg-rose-50 text-rose-600 border-rose-200 cursor-pointer active:scale-95'
+          }`}
+          title={(nation.activeWars || []).length > 0 ? '处于战争状态时无法解散国家' : '管理员注销'}
          >
-          <StrategicTreatyIcon size={13} className="text-slate-600 shrink-0" />
-          <span>递交国书</span>
+          <Trash2 className="w-4 h-4 shrink-0" />
+          <span>管理员注销</span>
          </button>
+        ) : <div className="hidden sm:block"></div>}
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+         {/* Secondary Actions */}
+         <div className="flex items-center gap-2">
+          {onOpenAlliance && (
+           <button
+            onClick={() => { onClose(); onOpenAlliance(nation); }}
+            className="px-3 h-9 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-sm rounded transition-all cursor-pointer whitespace-nowrap active:scale-95"
+           >
+            使馆/租借法案
+           </button>
+          )}
+          {onOpenDispute && (
+           <button
+            onClick={() => { onClose(); onOpenDispute(nation); }}
+            className="px-3 h-9 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-sm rounded transition-all cursor-pointer whitespace-nowrap active:scale-95"
+           >
+            领土争端
+           </button>
+          )}
+           <button
+            onClick={() => { onClose(); onOpenDiplomacy(nation, 'peace'); }}
+            className="px-3 h-9 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-sm rounded transition-all cursor-pointer whitespace-nowrap active:scale-95"
+           >
+            递交国书
+           </button>
+         </div>
+         
+         {/* Danger Primary Action */}
          <button
-          id="btn-open-diplomacy-war"
-          type="button"
-          onClick={() => {
-           onClose();
-           onOpenDiplomacy(nation, 'war');
-          }}
-          className="h-8 px-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-medium text-xs rounded border border-rose-700 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-rose-500 focus-visible:outline-none"
+          onClick={() => { onClose(); onOpenDiplomacy(nation, 'war'); }}
+          className="px-5 h-9 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-600 hover:text-white font-bold text-sm rounded transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95"
          >
-          <StrategicWarfareIcon size={13} className="text-white shrink-0" />
+          <StrategicWarfareIcon size={14} className="shrink-0" />
           <span>宣战通牒</span>
-         </button>
-         <button
-          id="btn-close-nation-modal"
-          type="button"
-          onClick={onClose}
-          className="h-8 px-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-medium text-xs rounded border border-slate-300/80 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-slate-400 focus-visible:outline-none"
-         >
-          <X className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <span>关闭</span>
          </button>
         </div>
        </div>
-      ) : (
-       <button
-        id="btn-close-nation-modal"
-        type="button"
-        onClick={onClose}
-        className="h-8 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-medium text-xs rounded border border-slate-300/80 shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:translate-y-px focus-visible:ring-1 focus-visible:ring-slate-400 focus-visible:outline-none"
-       >
-        <X className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-        <span>关闭</span>
-       </button>
-      )}
-     </div>
+     )}
     </div>
    </div>
   </div>

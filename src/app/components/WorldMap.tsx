@@ -32,6 +32,7 @@ import {
  Sun,
  Moon,
  Contrast,
+ Boxes,
 } from 'lucide-react';
 import * as d3Geo from 'd3-geo';
 import { Nation } from '../types';
@@ -46,6 +47,14 @@ import {
  saveMapTheme,
  toModernMapColor,
 } from '../lib/mapThemes';
+import { computeDynamicCountryLabels } from '../lib/countryLabelEngine';
+import { computeNationalBorders } from '../lib/nationalBorderEngine';
+import {
+ STRATEGIC_RESOURCES,
+ StrategicResourceType,
+ getProvinceResourceDeposits,
+ calculateNationResourceOverview,
+} from '../lib/strategicCommandEngine';
 import {
  TacticalCivFactoryIcon,
  TacticalMilFactoryIcon,
@@ -96,6 +105,7 @@ interface WorldMapProps {
  onBuildInProvince?: (provinceId: string | number, provinceName: string, buildingType: StrategicBuildingType) => void;
  onOpenDispute?: (targetNation: Nation, provinceName: string) => void;
  onOpenArmyCommand?: () => void;
+ onOpenResources?: () => void;
 }
 
 // Built-in simplified world landmasses GeoJSON coordinates for fallback
@@ -230,7 +240,7 @@ function interiorDistance(point: PixelPoint, feature: any, projection: any) {
 }
 
 // High-performance memoized province path renderer for 1000+ features
-export type MapModeType = 'political' | 'industrial' | 'population' | 'terrain' | 'diplomatic' | 'military';
+export type MapModeType = 'political' | 'industrial' | 'resources' | 'population' | 'terrain' | 'diplomatic' | 'military';
 
 interface ProvincePathProps {
  pathD: string;
@@ -293,53 +303,15 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
 }: ProvincePathProps) {
  let fill = themeConfig.land;
  let stroke = themeConfig.provinceBorder;
- let strokeWidth = 0.55;
+ let strokeWidth = 0.58;
  let strokeOpacity = 0.95;
  let fillOpacity = 1;
 
- // Custom Map Mode Coloring
- if (mapMode === 'industrial') {
-  const provRecord = ownerNation?.provinces?.find(
-   (p) => String(p.id) === String(stateId) || String(p.name) === String(name)
-  );
-  const civ = provRecord ? getProvinceCivilianFactories(provRecord) : (properties?.civilianFactories || 0);
-  const mil = provRecord ? getProvinceMilitaryFactories(provRecord) : (properties?.militaryFactories || 0);
-  const totalIC = civ + mil;
-  if (totalIC >= 6) {
-   fill = '#486b5d'; // High IC: muted industrial green
-  } else if (totalIC >= 3) {
-   fill = '#3e5d52'; // Moderate IC
-  } else if (totalIC >= 1) {
-   fill = '#334b44'; // Low IC
-  } else {
-   fill = mapTheme === 'white' ? '#f1f5f9' : '#1e293b'; // Zero IC
-  }
- } else if (mapMode === 'population') {
-  const provRecord = ownerNation?.provinces?.find(
-   (p) => String(p.id) === String(stateId) || String(p.name) === String(name)
-  );
-  const pop = (provRecord?.population as number) ?? (properties?.manpower as number) ?? (properties?.population as number) ?? 0;
-  if (pop >= 6000000) {
-   fill = '#064e3b';
-  } else if (pop >= 3500000) {
-   fill = '#047857';
-  } else if (pop >= 1800000) {
-   fill = '#059669';
-  } else if (pop >= 900000) {
-   fill = '#10b981';
-  } else if (pop >= 400000) {
-   fill = '#34d399';
-  } else if (pop >= 150000) {
-   fill = '#6ee7b7';
-  } else if (pop > 0) {
-   fill = '#a7f3d0';
-  } else {
-   fill = mapTheme === 'white' ? '#f1f5f9' : '#1e293b';
-  }
- } else if (mapMode === 'terrain') {
-  const terrain = getProvinceTerrain(stateId, name, properties);
-  fill = terrain.mapFill;
- }
+ const provRecord = ownerNation?.provinces?.find(
+  (p) =>
+   String(p.id) === String(stateId) ||
+   (p.name && String(p.name).trim().toLowerCase() === String(name).trim().toLowerCase())
+ );
 
  if (isCapitalPreview) {
   fill = previewFlagColor;
@@ -422,17 +394,101 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
    strokeWidth = 0.9;
    strokeOpacity = 0.85;
   }
+ } else if (mapMode === 'population') {
+  // 人口专题地图：无论是否建国，全图所有省份均统一按人口规模阶梯着色
+  const pop =
+   (provRecord?.population as number) ??
+   (provRecord?.manpower as number) ??
+   (properties?.manpower as number) ??
+   (properties?.population as number) ??
+   1500000;
+
+  if (pop >= 6000000) {
+   fill = '#064e3b'; // 极高/超大城市 (Emerald-900)
+  } else if (pop >= 3500000) {
+   fill = '#047857'; // 高人口稠密区 (Emerald-700)
+  } else if (pop >= 1800000) {
+   fill = '#059669'; // 中高密度 (Emerald-600)
+  } else if (pop >= 900000) {
+   fill = '#10b981'; // 中等人口 (Emerald-500)
+  } else if (pop >= 400000) {
+   fill = '#34d399'; // 低密度 (Emerald-400)
+  } else if (pop >= 150000) {
+   fill = '#6ee7b7'; // 稀疏地块 (Emerald-300)
+  } else {
+   fill = '#a7f3d0'; // 极低/旷野 (Emerald-200)
+  }
+  fillOpacity = isHovered ? 1 : 0.88;
+  stroke = isHovered ? themeConfig.hoverLandStroke : '#047857';
+  strokeWidth = isHovered ? 1.1 : 0.42;
+  strokeOpacity = isHovered ? 0.95 : 0.62;
+ } else if (mapMode === 'industrial') {
+  // 工业产能专题地图：统计民用与军工总产能
+  const civ = provRecord ? getProvinceCivilianFactories(provRecord) : (properties?.civilianFactories || 0);
+  const mil = provRecord ? getProvinceMilitaryFactories(provRecord) : (properties?.militaryFactories || 0);
+  const totalIC = civ + mil;
+  if (totalIC >= 6) {
+   fill = '#15803d'; // 重工业枢纽: 饱满绿
+  } else if (totalIC >= 3) {
+   fill = '#2563eb'; // 中型工业区: 工业蓝
+  } else if (totalIC >= 1) {
+   fill = '#d97706'; // 初级工业: 琥珀金
+  } else {
+   fill = mapTheme === 'white' ? '#e2e8f0' : '#1e293b'; // 无工业产能
+  }
+  fillOpacity = isHovered ? 1 : 0.88;
+  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.provinceBorder;
+  strokeWidth = isHovered ? 1.1 : 0.42;
+  strokeOpacity = isHovered ? 0.95 : 0.62;
+ } else if (mapMode === 'resources') {
+  // 战略资源专题地图：根据省份主导战略资源类型与储量着色
+  const rawDeposits = (provRecord?.resources && Object.keys(provRecord.resources).length > 0)
+   ? provRecord.resources
+   : getProvinceResourceDeposits(stateId, name, properties);
+  const activeDeposits = (Object.keys(rawDeposits) as StrategicResourceType[])
+   .filter((k) => Boolean(rawDeposits[k] && rawDeposits[k]! > 0))
+   .map((k) => ({ type: k, amount: rawDeposits[k]! }));
+  const totalAmount = activeDeposits.reduce((s, r) => s + (r.amount || 0), 0);
+  const primaryRes = activeDeposits.length > 0
+   ? [...activeDeposits].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0]
+   : null;
+
+  if (totalAmount > 0 && primaryRes) {
+   const resDef = STRATEGIC_RESOURCES[primaryRes.type];
+   fill = resDef?.color || '#3b82f6';
+   fillOpacity = isHovered ? 1 : Math.min(0.85, 0.4 + (totalAmount / 70) * 0.45);
+  } else {
+   fill = mapTheme === 'white' ? '#f1f5f9' : '#141c2b';
+   fillOpacity = 0.85;
+  }
+  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.provinceBorder;
+  strokeWidth = isHovered ? 1.1 : 0.42;
+  strokeOpacity = isHovered ? 0.95 : 0.62;
+ } else if (mapMode === 'terrain') {
+  // 自然地理地形专题地图
+  const terrain = getProvinceTerrain(stateId, name, properties);
+  fill = terrain.mapFill;
+  fillOpacity = isHovered ? 0.96 : 0.82;
+  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.provinceBorder;
+  strokeWidth = isHovered ? 1.1 : 0.42;
+  strokeOpacity = isHovered ? 0.95 : 0.62;
  } else if (ownerNation) {
+  // 经典政务/主权/战线地图模式：建国领土按主权国旗底色渲染
   fill = toModernMapColor(ownerNation.flagColor, mapTheme);
-  fillOpacity = isHovered ? 1 : 0.96;
-  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.countryBorder;
-  strokeWidth = isHovered ? 1.35 : 0.8;
-  strokeOpacity = isHovered ? 1 : 0.92;
+  // HOI4 半透明自然涂层：透出底色质感
+  fillOpacity = isHovered
+   ? (mapTheme === 'white' ? 0.88 : 0.95)
+   : isNonCore
+   ? (mapTheme === 'white' ? 0.52 : 0.65)
+   : (mapTheme === 'white' ? 0.64 : 0.82);
+  stroke = isHovered ? themeConfig.hoverLandStroke : themeConfig.provinceBorder;
+  strokeWidth = isHovered ? 1.1 : 0.42;
+  strokeOpacity = isHovered ? 0.95 : 0.62;
  } else if (isHovered) {
   fill = themeConfig.hoverLandFill;
   stroke = themeConfig.hoverLandStroke;
-  strokeWidth = 1.1;
-  strokeOpacity = 1;
+  strokeWidth = 1.0;
+  strokeOpacity = 0.95;
  }
 
  return (
@@ -465,16 +521,6 @@ const MemoizedProvincePath = memo(function MemoizedProvincePath({
     onMouseLeave={onUnhover}
     onClick={() => onClick(stateId, name, properties)}
    />
-   {/* Non-core territory visual stripe overlay (非核心领土斜线暗纹标记) */}
-   {ownerNation && isNonCore && !isConstructionMode && (
-    <path
-     d={pathD}
-     fill="url(#non-core-stripes)"
-     stroke="none"
-     vectorEffect="non-scaling-stroke"
-     className="pointer-events-none"
-    />
-   )}
   </g>
  );
 });
@@ -646,6 +692,51 @@ function formatCampaignTime(realStartMs: number, nowMs: number) {
 
 const DEFAULT_EUROPE_VIEW = { zoom: 2.8, pan: { x: -920, y: -270 } };
 
+function deepenColor(color: string): string {
+  if (!color) return '#000000';
+  
+  let h = 0, s = 0, l = 0;
+  
+  if (color.startsWith('hsl')) {
+    const match = color.match(/hsl\(([^,]+),\s*([^%]+)%,\s*([^%]+)%\)/);
+    if (match) {
+      h = parseFloat(match[1]);
+      s = parseFloat(match[2]) / 100;
+      l = parseFloat(match[3]) / 100;
+    }
+  } else {
+    let cleanHex = color.replace('#', '');
+    if (cleanHex.length === 3) {
+      cleanHex = cleanHex.split('').map(c => c + c).join('');
+    }
+    const r = parseInt(cleanHex.substring(0, 2), 16) / 255 || 0;
+    const g = parseInt(cleanHex.substring(2, 4), 16) / 255 || 0;
+    const b = parseInt(cleanHex.substring(4, 6), 16) / 255 || 0;
+
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+      h *= 360;
+    }
+  }
+
+  // Just slightly boost saturation and keep lightness close to original.
+  // The 'multiply' blend mode will naturally darken it against the background.
+  s = Math.min(1.0, s * 1.15 + 0.1);
+  l = Math.max(0.35, l * 0.82);
+
+  return `hsl(${Math.round(h)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+}
+
 export const WorldMap: React.FC<WorldMapProps> = ({
  nations,
  onSelectNation,
@@ -660,6 +751,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  onBuildInProvince,
  onOpenDispute,
  onOpenArmyCommand,
+ onOpenResources,
 }) => {
  const [geoData, setGeoData] = useState<any>(null);
  const [mapTheme, setMapTheme] = useState<MapVisualTheme>(() => getSavedMapTheme());
@@ -1226,86 +1318,26 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    .filter(Boolean) as Array<{ nation: Nation; x: number; y: number; provinceName?: string }>;
  }, [nations, geoData, pathGenerator, projection, width, height]);
 
- // Geometry is expensive but invariant while zooming. Re-evaluate labels only when crossing a visibility tier.
- const mapLabelTier = zoom < 1.8 ? 0 : zoom < 2.5 ? 1 : zoom < 3.5 ? 2 : 3;
-
- // Adaptive Country Label System: labels are derived from the actual owned province polygons,
- // searching their largest safe interior area rather than relying on a fixed coordinate or capital.
+ // Adaptive Country Label System (HOI4 Grand Strategy Cartographic Labels)
  const countryLabels = useMemo(() => {
-  const capitalByNation = new Map<string, { nation: Nation; x: number; y: number; provinceName?: string }>(
-   nationMarkers.map((marker) => [marker.nation.id, marker])
+  return computeDynamicCountryLabels(
+   nations,
+   precalculatedFeatures,
+   provinceOwnership,
+   projection,
+   zoom
   );
-  const candidates = nations.map((nation) => {
-   const owned = precalculatedFeatures.filter((feature) => {
-    const owner = provinceOwnership.get(feature.stateId) || provinceOwnership.get(feature.name);
-    return owner?.id === nation.id;
-   });
-   if (!owned.length) return null;
+ }, [nations, precalculatedFeatures, provinceOwnership, projection, zoom]);
 
-   // Label only the largest continuous province/landmass. This prevents scattered possessions
-   // from inflating the label rectangle and keeps the expensive interior search bounded.
-   const byArea = [...owned].sort((a, b) => b.area - a.area);
-   const primary = byArea[0];
-   const [topLeft, bottomRight] = primary.bounds;
-   const bounds = { minX: topLeft[0], minY: topLeft[1], maxX: bottomRight[0], maxY: bottomRight[1] };
-   const mapArea = owned.reduce((sum, feature) => sum + feature.area, 0);
-   const width = Math.max(1, bounds.maxX - bounds.minX);
-   const height = Math.max(1, bounds.maxY - bounds.minY);
-   const interiorCandidates: PixelPoint[] = primary.centroid ? [primary.centroid] : [];
-
-   // Bounded pole-of-inaccessibility approximation: 24 samples on the principal landmass,
-   // rather than scanning every province vertex for every nation at map-open.
-   for (let row = 1; row <= 4; row += 1) {
-    for (let col = 1; col <= 6; col += 1) {
-     interiorCandidates.push([
-      bounds.minX + (width * col) / 7,
-      bounds.minY + (height * row) / 5,
-     ]);
-    }
-   }
-
-   let bestPoint = interiorCandidates[0] || [width / 2, height / 2] as PixelPoint;
-   let bestScore = -Infinity;
-   let bestClearance = 0;
-   interiorCandidates.forEach((point) => {
-    if (!pointInsideFeature(point, primary.feature, projection)) return;
-    const clearance = interiorDistance(point, primary.feature, projection);
-    const capital = capitalByNation.get(nation.id);
-    const capitalPenalty = capital && Math.hypot(point[0] - capital.x, point[1] - capital.y) < 8 ? 3.4 : 0;
-    if (clearance - capitalPenalty > bestScore) {
-     bestScore = clearance - capitalPenalty;
-     bestClearance = clearance;
-     bestPoint = point;
-    }
-   });
-
-   return { nation, mapArea, bounds, width, height, clearance: bestClearance, point: bestPoint };
-  }).filter(Boolean) as Array<{ nation: Nation; mapArea: number; bounds: { minX: number; minY: number; maxX: number; maxY: number }; width: number; height: number; clearance: number; point: PixelPoint }>;
-
-  // Distant views are intentionally sparse. Labels fade in only when their country has enough usable map space.
-  const visibleArea = [1500, 650, 240, 72][mapLabelTier];
-  const placed: Array<{ x: number; y: number; width: number; height: number }> = [];
-  return candidates.sort((a, b) => b.mapArea - a.mapArea).flatMap((item) => {
-   if (item.mapArea < visibleArea * 0.72 || item.clearance < 1.6) return [];
-   const desiredSize = Math.min(5.4, Math.max(1.55, Math.sqrt(item.mapArea) / 12));
-   // The clearance around the pole limits the label rectangle, so text cannot casually cross a narrow coast or border.
-   const safeTextWidth = Math.max(5, Math.min(item.width * 0.68, item.clearance * 2.05, 78));
-   const safeTextHeight = Math.max(3.2, Math.min(item.height * 0.60, item.clearance * 1.62));
-   const charsPerLine = Math.max(2, Math.floor(safeTextWidth / Math.max(1.55, desiredSize * 1.08)));
-   const characters = Array.from(item.nation.name.replace(/\s+/g, ''));
-   const lines = Array.from({ length: Math.ceil(characters.length / charsPerLine) }, (_, index) => characters.slice(index * charsPerLine, (index + 1) * charsPerLine).join(''));
-   const fontSize = Math.min(desiredSize, safeTextWidth / Math.max(1, Math.max(...lines.map((line) => line.length)) * 1.08), safeTextHeight / Math.max(1.25, lines.length * 1.24));
-   if (fontSize < 1.45) return [];
-   const labelWidth = Math.max(...lines.map((line) => line.length)) * fontSize * 1.06;
-   const labelHeight = lines.length * fontSize * 1.18;
-   const box = { x: item.point[0] - labelWidth / 2, y: item.point[1] - labelHeight / 2, width: labelWidth, height: labelHeight };
-   const overlaps = placed.some((other) => !(box.x + box.width < other.x || other.x + other.width < box.x || box.y + box.height < other.y || other.y + other.height < box.y));
-   if (overlaps) return [];
-   placed.push(box);
-   const opacity = Math.min(1, Math.max(0, (item.mapArea - visibleArea * 0.72) / Math.max(1, visibleArea * 0.28)));
-   return [{ ...item, lines, fontSize, opacity }];
-  });
- }, [nations, precalculatedFeatures, provinceOwnership, projection, nationMarkers, mapLabelTier]);
+ // HOI4-Style Layered 3D Sovereign National Borders
+ const nationalBorders = useMemo(() => {
+  return computeNationalBorders(
+   nations,
+   precalculatedFeatures,
+   provinceOwnership,
+   projection
+  );
+ }, [nations, precalculatedFeatures, provinceOwnership, projection]);
 
  // 战区集团军编制与战术进攻矛头推演态势
  const [armyGroupPosture, setArmyGroupPosture] = useState<'aggressive' | 'balanced' | 'defensive'>('balanced');
@@ -1542,7 +1574,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   }
 
   // 建国初始领土相邻判定：
-  // 当已有选定初始省份时，点击的新省份必须与已有初始省份相邻连通（已选省份点击则为取消选中）
+  // 当已有选定初始省份时，点击的新省份必须与当前已选领土（所有已圈选省份）相邻连通（已选省份点击则为取消选中）
   if (previewState?.mode === 'territory' && previewState.provinces && previewState.provinces.length > 0) {
    const isAlreadySelected = previewState.provinces.some(
     (p) => String(p.id) === String(id) || (p.name && p.name.trim().toLowerCase() === String(name).trim().toLowerCase())
@@ -1550,7 +1582,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    if (!isAlreadySelected) {
     const isAdjacent = isProvinceAdjacentToNation(id, previewState.provinces, name) || isProvinceAdjacentToNation(name, previewState.provinces);
     if (!isAdjacent) {
-     setOccupiedWarning(`建国判定：省份【${name}】与当前已选初始领土不相邻！建国省份必须相邻连通。`);
+     setOccupiedWarning(`建国判定：省份【${name}】与当前已选领土不相邻！建国省份必须相邻连通。`);
      if (occupiedWarningTimer.current) window.clearTimeout(occupiedWarningTimer.current);
      occupiedWarningTimer.current = window.setTimeout(() => setOccupiedWarning(null), 3500);
      return;
@@ -1644,7 +1676,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    properties,
    ownerNation,
   });
- }, [constructionPlacementBuilding, isPeacefulExpansion, myNation, onBuildInProvince, previewState?.mode, provinceOwnership]);
+ }, [constructionPlacementBuilding, isPeacefulExpansion, myNation, onBuildInProvince, previewState, provinceOwnership]);
 
  const validExpansionIds = useMemo(() => {
   if (!isPeacefulExpansion || !myNation) return new Set<string>();
@@ -1935,6 +1967,30 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        </div>
       </button>
      )}
+
+     {/* HUD System Module 3: Strategic Resources (战略资源) */}
+     {onOpenResources && (
+      <button
+       id="map-floating-resources-btn"
+       type="button"
+       onClick={(e) => {
+        e.stopPropagation();
+        onOpenResources();
+       }}
+       className="px-2.5 py-1 rounded bg-slate-950/80 hover:bg-sky-950/40 text-sky-100 border border-sky-500/25 backdrop-blur-md shadow flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group active:scale-95"
+       title="进入国家战略资源储备中枢"
+      >
+       <Boxes className="w-3.5 h-3.5 text-sky-400 shrink-0 group-hover:scale-110 transition-transform" />
+       <div className="flex flex-col items-start leading-none">
+        <span className="text-[9px] text-sky-300/80 font-semibold tracking-wider leading-none">
+         战略资源
+        </span>
+        <span className="font-mono text-xs font-black text-sky-100 tabular-nums mt-0.5 leading-none">
+         {Object.values(calculateNationResourceOverview(myNation)).reduce((s, r) => s + r.stockpile, 0).toLocaleString()}
+        </span>
+       </div>
+      </button>
+     )}
     </div>
 
     {/* Right: National Core Resource / Faction Power ( 5) */}
@@ -1960,7 +2016,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     </div>
    </div>
 
-    {/* SECONDARY ROW: Map Modes Tactical Selector (政务 / 工业 / 人口 / 地貌 / 战线) */}
+    {/* SECONDARY ROW: Map Modes Tactical Selector (政务 / 工业 / 资源 / 人口 / 地貌 / 战线) */}
     <div className="absolute top-[44px] sm:top-[48px] left-2 sm:left-3.5 z-30 flex flex-col gap-1 max-w-[calc(100vw-4rem)] pointer-events-none">
      <div className="pointer-events-auto flex items-center p-0.5 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow-md transition-all flex-wrap sm:flex-nowrap gap-0.5">
       {/* Tactical Map Modes List */}
@@ -1968,6 +2024,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        {[
         { id: 'political', label: '政务' },
         { id: 'industrial', label: '工业' },
+        { id: 'resources', label: '资源' },
         { id: 'population', label: '人口' },
         { id: 'terrain', label: '地貌' },
         { id: 'military', label: '战线' },
@@ -2087,6 +2144,81 @@ export const WorldMap: React.FC<WorldMapProps> = ({
      )}
     </AnimatePresence>
 
+    {/* Population Mode Tactical Legend Strip */}
+    <AnimatePresence>
+     {mapMode === 'population' && (
+      <motion.div
+       initial={{ opacity: 0, y: -4 }}
+       animate={{ opacity: 1, y: 0 }}
+       exit={{ opacity: 0, y: -4 }}
+       transition={{ duration: 0.15 }}
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+      >
+       <span className="text-slate-400 font-bold mr-0.5">人口阶梯:</span>
+       {[
+        { label: '<40万', color: '#a7f3d0' },
+        { label: '40-90万', color: '#34d399' },
+        { label: '90-180万', color: '#10b981' },
+        { label: '180-350万', color: '#059669' },
+        { label: '350-600万', color: '#047857' },
+        { label: '>600万', color: '#064e3b' },
+       ].map((t) => (
+        <span key={t.label} className="flex items-center gap-1">
+         <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: t.color }} />
+         <span className="text-slate-300 font-medium">{t.label}</span>
+        </span>
+       ))}
+      </motion.div>
+     )}
+    </AnimatePresence>
+
+    {/* Industrial Mode Tactical Legend Strip */}
+    <AnimatePresence>
+     {mapMode === 'industrial' && (
+      <motion.div
+       initial={{ opacity: 0, y: -4 }}
+       animate={{ opacity: 1, y: 0 }}
+       exit={{ opacity: 0, y: -4 }}
+       transition={{ duration: 0.15 }}
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+      >
+       <span className="text-slate-400 font-bold mr-0.5">总产能:</span>
+       {[
+        { label: '0 工厂', color: '#64748b' },
+        { label: '1-2 工厂', color: '#d97706' },
+        { label: '3-5 工厂', color: '#2563eb' },
+        { label: '6+ 工厂', color: '#15803d' },
+       ].map((t) => (
+        <span key={t.label} className="flex items-center gap-1">
+         <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: t.color }} />
+         <span className="text-slate-300 font-medium">{t.label}</span>
+        </span>
+       ))}
+      </motion.div>
+     )}
+    </AnimatePresence>
+
+    {/* Strategic Resources Mode Tactical Legend Strip */}
+    <AnimatePresence>
+     {mapMode === 'resources' && (
+      <motion.div
+       initial={{ opacity: 0, y: -4 }}
+       animate={{ opacity: 1, y: 0 }}
+       exit={{ opacity: 0, y: -4 }}
+       transition={{ duration: 0.15 }}
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+      >
+       <span className="text-slate-400 font-bold mr-0.5">战略资源:</span>
+       {Object.values(STRATEGIC_RESOURCES).map((res) => (
+        <span key={res.id} className="flex items-center gap-1">
+         <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: res.color }} />
+         <span className="text-slate-300 font-medium">{res.name}</span>
+        </span>
+       ))}
+      </motion.div>
+     )}
+    </AnimatePresence>
+
     {/* Terrain Mode Tactical Legend Strip */}
     <AnimatePresence>
      {mapMode === 'terrain' && (
@@ -2141,7 +2273,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       saveMapTheme(nextTheme);
      }}
      className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-95 group relative"
-     title={`地图主题: ${mapTheme === 'white' ? '白色系 (点击切换为灰色系)' : '灰色系 (点击切换为白色系)'} · 350ms 平滑材质过渡`}
+     title={`地图主题: ${mapTheme === 'white' ? '明亮模式 (点击切换为战术深色模式)' : '战术深色模式 (点击切换为明亮模式)'} · 350ms 平滑材质过渡`}
      aria-label="切换地图视觉主题"
     >
      {mapTheme === 'white' ? (
@@ -2211,9 +2343,6 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       <filter id="selection-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
        <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#38bdf8" floodOpacity="0.55" />
       </filter>
-      <filter id="archival-label-shadow" x="-25%" y="-30%" width="150%" height="170%">
-       <feDropShadow dx="0" dy="0.5" stdDeviation="0.4" floodColor={mapTheme === 'white' ? '#ffffff' : '#0f172a'} floodOpacity="0.8" />
-      </filter>
       <pattern
        id="construction-green-stripes"
        width="12"
@@ -2244,9 +2373,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         y1="0"
         x2="0"
         y2="8"
-        stroke="#0f172a"
+        stroke={mapTheme === 'white' ? '#0f172a' : '#cbd5e1'}
         strokeWidth="2.2"
-        strokeOpacity="0.35"
+        strokeOpacity={mapTheme === 'white' ? 0.35 : 0.45}
        />
       </pattern>
 
@@ -2279,6 +2408,12 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         <feMergeNode />
         <feMergeNode in="SourceGraphic" />
        </feMerge>
+      </filter>
+
+      {/* HOI4 Subtle Natural National Border Shadow */}
+      <filter id="hoi4-border-subtle-shadow" x="-20%" y="-20%" width="140%" height="140%">
+       <feGaussianBlur stdDeviation="0.45" />
+       <feColorMatrix type="matrix" values="0 0 0 0 0.04  0 0 0 0 0.07  0 0 0 0 0.11  0 0 0 0.22 0" />
       </filter>
       <style>{`
        @keyframes warFrontlinePulse {
@@ -2330,6 +2465,38 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
       {/* High-performance 1000+ Provinces Rendering */}
       <g id="provinces-layer">{provincePathElements}</g>
+
+      {/* HOI4 Restrained Natural Sovereign National Borders (Single thin dark line + subtle soft shadow) */}
+      <g id="hoi4-national-borders-layer" className="pointer-events-none select-none">
+       {/* 1. 单一极其轻柔的暗色微扩散阴影 (Subtle Soft Outer Shadow - low opacity, embedded into terrain) */}
+       {nationalBorders.map((b) => (
+        <path
+         key={`border-shadow-${b.nationId}`}
+         d={b.outerBorderPathD}
+         fill="none"
+         stroke="#050a12"
+         strokeWidth={1.1}
+         strokeOpacity={0.18}
+         filter="url(#hoi4-border-subtle-shadow)"
+         strokeLinejoin="round"
+         strokeLinecap="round"
+        />
+       ))}
+
+       {/* 2. 单一精细国界线 (明亮模式为深色边界，深色模式为白银/亮色边界) */}
+       {nationalBorders.map((b) => (
+        <path
+         key={`border-main-${b.nationId}`}
+         d={b.outerBorderPathD}
+         fill="none"
+         stroke={currentTheme.countryBorder}
+         strokeWidth={mapTheme === 'white' ? 0.52 : 0.65}
+         strokeOpacity={mapTheme === 'white' ? 0.78 : 0.88}
+         strokeLinejoin="round"
+         strokeLinecap="round"
+        />
+       ))}
+      </g>
 
       {/* War Frontlines Border Glow & Hazard Flow Layer (交战双方边境接壤省份特殊战火光晕与流动警戒线) */}
       {displayedFrontlines.length > 0 && (
@@ -2463,31 +2630,119 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        })}
       </g>
 
-      {/* Country names are part of the cartography, positioned inside their actual owned polygon area. */}
-      <g id="adaptive-country-labels-layer" className="pointer-events-none select-none" filter="url(#archival-label-shadow)">
-       {countryLabels.map((label) => (
-        <text
-         key={`country-label-${label.nation.id}`}
-         x={label.point[0]}
-         y={label.point[1] - ((label.lines.length - 1) * label.fontSize * 0.58)}
-         textAnchor="middle"
-         fill={currentTheme.labelColor}
-         fillOpacity={Math.min(0.88, (0.48 + zoom * 0.1) * label.opacity)}
-         style={{
-          transition: 'fill 400ms cubic-bezier(0.4, 0, 0.2, 1), stroke 400ms cubic-bezier(0.4, 0, 0.2, 1), fill-opacity 260ms ease',
-         }}
-         stroke={currentTheme.labelStroke}
-         strokeOpacity={mapTheme === 'white' ? '0.75' : '0.52'}
-         strokeWidth={Math.max(0.2, label.fontSize * 0.08)}
-         paintOrder="stroke"
-         fontSize={label.fontSize}
-         fontWeight="600"
-         letterSpacing={Math.max(0.02, label.fontSize * 0.025)}
-         className="font-serif"
-        >
-         {label.lines.map((line, index) => <tspan key={`${line}-${index}`} x={label.point[0]} dy={index === 0 ? 0 : label.fontSize * 1.18}>{line}</tspan>)}
-        </text>
-       ))}
+      {/* Strategic Resources Tactical Overlay Layer */}
+      {mapMode === 'resources' && (
+       <g id="strategic-resources-overlay-layer" className="pointer-events-none select-none">
+        {precalculatedFeatures.map((item) => {
+         const { stateId, name, centroid, properties } = item;
+         if (!centroid) return null;
+         const ownerNation = provinceOwnership.get(stateId) || provinceOwnership.get(name);
+         const provRecord = ownerNation?.provinces?.find(
+          (p) => String(p.id) === String(stateId) || (p.name && String(p.name).trim().toLowerCase() === String(name).trim().toLowerCase())
+         );
+         const rawDeposits = (provRecord?.resources && Object.keys(provRecord.resources).length > 0)
+          ? provRecord.resources
+          : getProvinceResourceDeposits(stateId, name, properties);
+         const deposits = (Object.keys(rawDeposits) as StrategicResourceType[])
+          .filter((k) => Boolean(rawDeposits[k] && rawDeposits[k]! > 0))
+          .map((k) => ({ type: k, amount: rawDeposits[k]! }));
+
+         if (!deposits || deposits.length === 0) return null;
+
+         const [cx, cy] = centroid;
+         const badgeWidth = Math.min(22, 4.5 + deposits.length * 7.5);
+         const badgeHeight = 3.6;
+
+         return (
+          <g key={`res-overlay-${stateId}`} transform={`translate(${cx}, ${cy})`}>
+           <rect
+            x={-badgeWidth / 2}
+            y={-badgeHeight / 2}
+            width={badgeWidth}
+            height={badgeHeight}
+            rx={badgeHeight / 2}
+            fill="rgba(15, 23, 42, 0.9)"
+            stroke="rgba(255, 255, 255, 0.25)"
+            strokeWidth={0.25}
+           />
+           {deposits.map((dep, idx) => {
+            const resDef = STRATEGIC_RESOURCES[dep.type];
+            if (!resDef) return null;
+            const offsetX = -badgeWidth / 2 + 2.8 + idx * 7.5;
+            return (
+             <g key={`dep-${dep.type}-${idx}`} transform={`translate(${offsetX}, 0)`}>
+              <circle cx={-0.6} cy={0} r={1.0} fill={resDef.color} stroke="#ffffff" strokeWidth={0.2} />
+              <text
+               x={1.0}
+               y={0.7}
+               fontSize={1.9}
+               fontWeight="bold"
+               fill="#f8fafc"
+               fontFamily="monospace"
+              >
+               {dep.amount}
+              </text>
+             </g>
+            );
+           })}
+          </g>
+         );
+        })}
+       </g>
+      )}
+
+      {/* Dynamic Country Name Labels (HOI4-inspired Grand Strategy Map Typography) */}
+      <g id="adaptive-country-labels-layer" className="pointer-events-none select-none">
+       <defs>
+        <filter id="country-label-subtle-shadow" x="-30%" y="-30%" width="160%" height="160%">
+         <feDropShadow dx="0.1" dy="0.15" stdDeviation="0.25" floodColor="#000000" floodOpacity="0.28" />
+        </filter>
+        {countryLabels.map((label) => (
+         <path
+          key={`spine-def-${label.pathId}`}
+          id={label.pathId}
+          d={label.pathD}
+          fill="none"
+          stroke="none"
+         />
+        ))}
+       </defs>
+       {countryLabels.map((label) => {
+        return (
+         <text
+          key={`country-label-${label.nation.id}`}
+          dominantBaseline="central"
+          textAnchor="middle"
+          fill={currentTheme.labelColor}
+          fillOpacity={label.opacity}
+          filter="url(#country-label-subtle-shadow)"
+          style={{
+           fontFamily: '"Barlow Condensed", "Cinzel", "Oswald", "Noto Sans SC", "PingFang SC", "Heiti SC", sans-serif',
+           fontStretch: 'condensed',
+           textTransform: 'uppercase',
+           transition: 'fill-opacity 240ms ease',
+          }}
+          stroke={currentTheme.labelStroke}
+          strokeWidth={Math.max(0.18, label.fontSize * 0.042)}
+          strokeOpacity={0.92}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          paintOrder="stroke fill"
+          fontSize={label.fontSize}
+          fontWeight="700"
+          letterSpacing={`${label.letterSpacing}px`}
+          className="select-none pointer-events-none"
+         >
+          <textPath
+           href={`#${label.pathId}`}
+           startOffset="50%"
+           textAnchor="middle"
+          >
+           {label.displayText}
+          </textPath>
+         </text>
+        );
+       })}
       </g>
 
       {/* Plotted Nation Capital Markers & Tactical Capital Hubs (纯矢量极简随地图缩放) */}

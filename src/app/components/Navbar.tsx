@@ -40,6 +40,7 @@ interface NavbarProps {
   onOpenCreateNation: () => void;
   onOpenConstruction?: () => void;
   onOpenBugFeedback?: () => void;
+  onOpenAdminPrompt?: () => void;
   onRefreshNations?: () => void;
 }
 
@@ -50,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCreateNation,
   onOpenConstruction,
   onOpenBugFeedback,
+  onOpenAdminPrompt,
   onRefreshNations,
 }) => {
   const { user, isAuthenticated, logout, isAdmin, toggleAdminRole, myNation } = useAuth();
@@ -61,6 +63,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const [worldClockStart, setWorldClockStart] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  // 5-consecutive-clicks easter egg for discreet Admin Prompt
+  const brandClickCountRef = useRef(0);
+  const brandClickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleBrandDiscreetClick = () => {
+    brandClickCountRef.current += 1;
+    if (brandClickTimerRef.current) {
+      clearTimeout(brandClickTimerRef.current);
+    }
+
+    if (brandClickCountRef.current >= 5) {
+      brandClickCountRef.current = 0;
+      if (onOpenAdminPrompt) {
+        onOpenAdminPrompt();
+      }
+      return;
+    }
+
+    brandClickTimerRef.current = setTimeout(() => {
+      brandClickCountRef.current = 0;
+    }, 2500);
+
+    setActiveTab('lobby');
+  };
 
   useEffect(() => {
     let active = true;
@@ -132,26 +159,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           isTopCollapsed ? '-translate-y-full pointer-events-none' : 'translate-y-0'
         }`}
       >
-        <div className="max-w-5xl mx-auto px-3 sm:px-5 h-12 flex items-center justify-between gap-3">
-          {/* Left: Brand Identity */}
+        <div className="w-full max-w-6xl mx-auto px-2 sm:px-4 h-11 sm:h-12 flex items-center justify-between gap-2.5">
+          {/* Left: Raw Brand Trademark without extra padding + Plain Text Title */}
           <div
             id="nav-brand-logo"
-            onClick={() => setActiveTab('lobby')}
-            className="flex items-center gap-2 cursor-pointer group select-none flex-shrink-0"
+            className="flex items-center gap-2 select-none flex-shrink-0"
           >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-2xs border border-slate-200/80 bg-white">
+            <button
+              type="button"
+              onClick={handleBrandDiscreetClick}
+              className="h-9.5 sm:h-11 w-auto flex items-center justify-center flex-shrink-0 cursor-pointer transition-transform"
+              title="T3.0测试版本"
+            >
               <img
-                src="/logo_v13.png"
-                alt="V13 商标"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                src="/Tm.png"
+                alt="商标"
+                className="h-9.5 sm:h-11 w-auto max-w-[120px] object-contain select-none"
+                draggable={false}
               />
-            </div>
+            </button>
 
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-xs sm:text-sm text-slate-800 group-hover:text-indigo-600 transition-colors tracking-tight">
+            <button
+              type="button"
+              id="nav-brand-title-btn"
+              onClick={handleBrandDiscreetClick}
+              className="flex items-center text-left cursor-default p-0 bg-transparent border-0 select-none outline-hidden"
+              title="T3.0测试版本"
+            >
+              <span className="font-bold text-sm sm:text-base text-slate-800 tracking-tight">
                 {brandTitle}
               </span>
-            </div>
+            </button>
           </div>
 
           {/* Center: Subtle Campaign Clock */}

@@ -27,6 +27,11 @@ import {
  ShieldAlert,
  AlertTriangle,
  Info,
+ Users,
+ Activity,
+ Building2,
+ Shield,
+ ChevronRight,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Nation, DiplomacyType, ConstructionQueueItem } from './types';
@@ -53,6 +58,8 @@ import { DiplomacyModal } from './components/DiplomacyModal';
 import { WorldMap } from './components/WorldMap';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthModal } from './components/AuthModal';
+import { NationalStrategicDossier } from './components/NationalStrategicDossier';
+import { AdminAuthModal } from './components/AdminAuthModal';
 import { ConstructionModal } from './components/ConstructionModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { MilitaryIndustryDashboard } from './components/MilitaryIndustryDashboard';
@@ -77,6 +84,7 @@ import { StrategicResourcesView } from './components/StrategicResourcesView';
 import { InternationalEmbargoView } from './components/InternationalEmbargoView';
 import { WarCommandCenter } from './components/WarCommandCenter';
 import { NationalFocusTreePage } from './components/NationalFocusTreePage';
+import { BrandSplashScreen } from './components/BrandSplashScreen';
 
 export type TabView =
  | 'lobby'
@@ -145,6 +153,7 @@ function MainApp() {
  // Nations Data
  const [nations, setNations] = useState<Nation[]>([]);
  const [isLoadingNations, setIsLoadingNations] = useState(true);
+ const [isInitialAppLoading, setIsInitialAppLoading] = useState(true);
 
  // Search & Filter
  const [searchTerm, setSearchTerm] = useState('');
@@ -155,6 +164,7 @@ function MainApp() {
 
  // Modals state
  const [authModalOpen, setAuthModalOpen] = useState(false);
+ const [adminAuthModalOpen, setAdminAuthModalOpen] = useState(false);
  const [bugFeedbackOpen, setBugFeedbackOpen] = useState(false);
  const [authDefaultMode, setAuthDefaultMode] = useState<'login' | 'register'>('login');
  const [createNationModalOpen, setCreateNationModalOpen] = useState(false);
@@ -290,6 +300,10 @@ function MainApp() {
  }, [setMyNation]);
 
  useEffect(() => {
+  const minTimer = setTimeout(() => {
+   setIsInitialAppLoading(false);
+  }, 1200);
+
   // Render the local archive first. A remote refresh then replaces it when
   // available, without trapping the lobby behind a full-screen loader.
   void fetchNations({ localOnly: true }).finally(() => {
@@ -300,6 +314,8 @@ function MainApp() {
   void hydrateStrategicStorage().catch((error) => {
    console.warn('Strategic archive sync deferred:', error);
   });
+
+  return () => clearTimeout(minTimer);
  }, [fetchNations]);
 
  // Handler: Open Diplomacy modal
@@ -348,10 +364,17 @@ function MainApp() {
    return;
   }
 
+  // Prevent deleting nation if currently in active war
+  if ((nation.activeWars || []).length > 0) {
+   showToast(` 国家【${nation.name}】当前处于交战状态，处于战争状态时无法解散国家！请先签署和平条约或投降。`);
+   alert(`国家【${nation.name}】当前处于战时交火状态（共 ${(nation.activeWars || []).length} 场正在进行的战争）。\n\n根据国际公法与战时体制，交战中国家无法解散！请先达成停战和平条约或在军事指挥部宣布投降。`);
+   return;
+  }
+
   setConfirmDialog({
    isOpen: true,
    title: `确认解散国家【${nation.name}】？`,
-   message: `解散国家为重大毁灭性决策！执行后，该国家将从世界地缘大厅彻底除名，所有签署的条约与交战状态将立即失效注销。`,
+   message: `解散国家为重大毁灭性决策！执行后，该国家将从世界地缘大厅彻底除名，领土将被释放为中立无主荒野。`,
    confirmText: '确认销毁并解散',
    isDangerous: true,
    onConfirm: async () => {
@@ -672,14 +695,17 @@ function MainApp() {
  }, [nations]);
 
  return (
-  <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-indigo-100 selection:text-indigo-900">
-   {/* Command Navigation Sidebar for Desktop */}
-   <CommandSidebar
-    activeTab={activeTab}
-    setActiveTab={setActiveTab}
-    activeWarsCount={activeWarsCount}
-    unreadNotifsCount={unreadNotifsCount}
-   />
+  <>
+   <BrandSplashScreen isLoading={isInitialAppLoading} />
+   <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    {/* Command Navigation Sidebar for Desktop */}
+    <CommandSidebar
+     activeTab={activeTab}
+     setActiveTab={setActiveTab}
+     activeWarsCount={activeWarsCount}
+     unreadNotifsCount={unreadNotifsCount}
+     onOpenAdminPrompt={() => setAdminAuthModalOpen(true)}
+    />
 
    <div className={`flex-1 flex flex-col min-w-0 relative ${activeTab === 'world_map' || activeTab === 'research' || activeTab === 'national_focus' ? 'h-screen overflow-hidden pb-0' : 'pb-20 md:pb-0 h-screen overflow-y-auto'}`}>
     {/* Navigation Header for Non-Map, Non-Research, Non-Focus Tabs */}
@@ -710,6 +736,7 @@ function MainApp() {
          setAuthDefaultMode(mode || 'login');
          setAuthModalOpen(true);
         }}
+        onOpenAdminPrompt={() => setAdminAuthModalOpen(true)}
         onOpenBugFeedback={() => setBugFeedbackOpen(true)}
         onOpenCreateNation={() => {
          if (!isAuthenticated) {
@@ -949,9 +976,9 @@ function MainApp() {
       ) : (
        /* User HAS a nation */
        <div className="space-y-4 sm:space-y-5 pb-24 sm:pb-8">
-        {/* Hero Card - Full-bleed Flag with Vignette & Overlaid Typography */}
+        {/* Hero Card - Balanced Flag Banner with Vignette & Overlaid Typography */}
         <div 
-         className="rounded-2xl sm:rounded-3xl shadow-sm relative overflow-hidden text-white aspect-[3/2] sm:aspect-[16/9] max-h-[320px] sm:max-h-[380px] w-full flex flex-col justify-between p-4 sm:p-6"
+         className="rounded-2xl shadow-xs relative overflow-hidden text-white w-full flex flex-col justify-between p-4 sm:p-5 min-h-[145px] sm:min-h-[165px]"
          style={{ backgroundColor: myNation.flagColor || '#4f46e5' }}
         >
          {/* Full-bleed Background Flag (Real Image or Emblem Watermark) */}
@@ -959,11 +986,11 @@ function MainApp() {
           <img
            src={myNation.emblemIcon}
            alt={myNation.name}
-           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none opacity-40"
           />
          ) : (
-          <div className="absolute -right-2 -bottom-4 opacity-30 pointer-events-none select-none">
-           {renderEmblemIcon(myNation.emblemIcon, { className: 'w-44 h-44 sm:w-56 sm:h-56 text-white' })}
+          <div className="absolute -right-2 -bottom-3 opacity-20 pointer-events-none select-none">
+           {renderEmblemIcon(myNation.emblemIcon, { className: 'w-36 h-36 sm:w-44 sm:h-44 text-white' })}
           </div>
          )}
 
@@ -974,7 +1001,7 @@ function MainApp() {
          {/* Top Bar Actions on the Flag */}
          <div className="relative z-10 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-black/40 backdrop-blur-md text-white border border-white/25 tracking-wide flex items-center gap-1 shadow-xs">
+           <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-black/40 backdrop-blur-md text-white border border-white/20 tracking-wide flex items-center gap-1 shadow-xs">
             <Crown className="w-3.5 h-3.5 text-amber-300" /> 最高领主
            </span>
           </div>
@@ -983,18 +1010,18 @@ function MainApp() {
            <button
             type="button"
             onClick={() => handleEditNation(myNation)}
-            className="px-2.5 py-1.5 bg-black/50 hover:bg-black/70 text-white backdrop-blur-md border border-white/25 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer shadow-xs"
+            className="h-7 px-2.5 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/20 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
             title="编辑国家资料"
            >
-            <Edit3 className="w-3.5 h-3.5 text-slate-200" /> <span className="hidden sm:inline">编辑</span>
+            <Edit3 className="w-3.5 h-3.5 text-slate-200" /> <span>编辑</span>
            </button>
            <button
             type="button"
             onClick={() => handleDeleteNation(myNation)}
-            className="px-2.5 py-1.5 bg-rose-950/70 hover:bg-rose-900/90 text-rose-100 backdrop-blur-md border border-rose-400/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer shadow-xs"
+            className="h-7 px-2.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-100 backdrop-blur-md border border-rose-400/30 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
             title="解散国家"
            >
-            <Trash2 className="w-3.5 h-3.5 text-rose-300" /> <span className="hidden sm:inline">解散</span>
+            <Trash2 className="w-3.5 h-3.5 text-rose-300" /> <span>解散</span>
            </button>
           </div>
          </div>
@@ -1002,16 +1029,16 @@ function MainApp() {
          {/* Bottom Overlaid Typography with Dark Vignette */}
          <div className="relative z-10 pt-3">
           <div className="min-w-0">
-           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight drop-shadow-lg truncate">
+           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight drop-shadow-md truncate leading-tight">
             {myNation.name}
            </h2>
-           <div className="text-[11px] text-white/90 mt-1 flex items-center gap-2 flex-wrap drop-shadow-md font-medium">
+           <div className="text-xs text-white/90 mt-1 flex items-center gap-2 flex-wrap drop-shadow-xs font-medium">
             <span className="flex items-center gap-1">
-             <MapPin className="w-3 h-3 text-amber-300 flex-shrink-0" />
+             <MapPin className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
              首都：<strong className="text-white font-semibold">{myNation.capital}</strong>
             </span>
-            <span className="text-white/50">·</span>
-            <span className="flex items-center gap-1 text-white font-mono">
+            <span className="text-white/40">·</span>
+            <span className="flex items-center gap-1 text-white font-mono text-[11px]">
              <TikTokIcon className="w-3.5 h-3.5 text-rose-300 flex-shrink-0" /> 抖音：{user.douyinName}
             </span>
            </div>
@@ -1019,7 +1046,7 @@ function MainApp() {
          </div>
         </div>
 
-        {/* Subtab Switcher for My Nation (国家执政) */}
+        {/* Subtab Switcher for My Nation (国家战略执政中枢) */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-3 gap-2">
           <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
           <button
@@ -1032,7 +1059,7 @@ function MainApp() {
            }`}
           >
            <Landmark className="w-3.5 h-3.5 flex-shrink-0" />
-           政务与外交
+           战略档案公报
           </button>
           <button
            type="button"
@@ -1097,9 +1124,14 @@ function MainApp() {
             const merged = { ...myNation, ...updated };
             setMyNation(merged);
             setNations((prev) => prev.map((n) => (n.id === merged.id ? merged : n)));
+            void api.nations.update(merged.id, updated).catch(() => {});
            }
           }}
-          onNavigateTab={setActiveTab}
+          onClose={() => setMyNationSubTab('overview')}
+          onNavigateTab={(tab) => {
+           setMyNationSubTab('overview');
+           setActiveTab(tab as any);
+          }}
          />
         ) : myNationSubTab === 'economy' ? (
          <NationalEconomyDashboard
@@ -1123,288 +1155,21 @@ function MainApp() {
           showToast={showToast}
          />
         ) : (
-         <>
-          {/* 4 Core Attribute Cards - 2 Columns Compact Grid */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 max-w-lg mx-auto w-full">
-           <div className="p-2.5 sm:p-3 bg-white border border-slate-200 shadow-2xs rounded-xl flex items-center justify-between">
-            <div>
-             <span className="text-[10px] text-slate-400 block font-medium leading-none mb-0.5">政体建制</span>
-             <span className="text-xs sm:text-sm font-bold text-slate-900">{myNation.regime}</span>
-            </div>
-            <Scale className="w-3.5 h-3.5 text-amber-500/80 flex-shrink-0" />
-           </div>
-           <div className="p-2.5 sm:p-3 bg-white border border-slate-200 shadow-2xs rounded-xl flex items-center justify-between">
-            <div>
-             <span className="text-[10px] text-slate-400 block font-medium leading-none mb-0.5">官方语言</span>
-             <span className="text-xs sm:text-sm font-bold text-slate-900">{myNation.language}</span>
-            </div>
-            <Languages className="w-3.5 h-3.5 text-indigo-500/80 flex-shrink-0" />
-           </div>
-           <div className="p-2.5 sm:p-3 bg-white border border-slate-200 shadow-2xs rounded-xl flex items-center justify-between">
-            <div>
-             <span className="text-[10px] text-slate-400 block font-medium leading-none mb-0.5">国家意识形态</span>
-             <span className="text-xs sm:text-sm font-bold text-slate-900">{myNation.ideology}</span>
-            </div>
-            <Sparkles className="w-3.5 h-3.5 text-emerald-500/80 flex-shrink-0" />
-           </div>
-           <div
-            onClick={() => setMyNationSubTab('economy')}
-            className="p-2.5 sm:p-3 bg-white border border-slate-200 hover:border-amber-400 shadow-2xs rounded-xl flex items-center justify-between cursor-pointer transition group"
-            title="点击进入国家经济与国库中枢"
-           >
-            <div>
-             <span className="text-[10px] text-slate-400 block font-medium group-hover:text-amber-700 leading-none mb-0.5">流通主权货币</span>
-             <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-800">{myNation.currency || '玲玉币'}</span>
-              <span className="text-[9px] font-mono px-1 py-0.1 rounded bg-amber-50 text-amber-800 border border-amber-200/60 font-bold">
-               {myNation.currencySymbol || '¥'}
-              </span>
-             </div>
-             <div className="mt-0.5 flex items-center gap-1 text-[9px] text-slate-400">
-              <span>实时国库</span>
-              <LiveCurrencyBalance nation={myNation} />
-             </div>
-            </div>
-            <Coins className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 group-hover:scale-110 transition" />
-           </div>
-          </div>
-
-          {/* 4 Core Strategic Operations Command Cards */}
-          <div className="space-y-2 pt-1">
-           <div className="text-xs font-extrabold text-slate-800 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-             <Crown className="w-3.5 h-3.5 text-indigo-600" />
-             <span>国家战略治国枢纽 · 执政公署</span>
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">领主核心系统</span>
-           </div>
-
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {/* 1. 地缘争端与沙盘推演 */}
-            <div
-             onClick={() => handleOpenDispute()}
-             className="p-3.5 bg-gradient-to-br from-rose-50/70 to-orange-50/50 border border-rose-200/80 hover:border-rose-300 rounded-2xl shadow-2xs transition-all cursor-pointer group hover:shadow-xs"
-            >
-             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
-                <Swords className="w-4 h-4" />
-               </div>
-               <div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-rose-700 transition">
-                 地缘争端与沙盘推演
-                </h4>
-                <p className="text-[10px] text-slate-500">
-                 {(myNation.activeWars?.length || 0) > 0 ? (
-                  <span className="text-rose-600 font-bold">{myNation.activeWars?.length} 场前线战事交火中</span>
-                 ) : (
-                  '和平戒备 · 发起争端/战力推演'
-                 )}
-                </p>
-               </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 text-[10px] font-extrabold font-mono">
-               推演
-              </span>
-             </div>
-            </div>
-
-            {/* 2. 国策法令与内阁智库 */}
-            <div
-             onClick={() => setDecreeModalOpen(true)}
-             className="p-3.5 bg-gradient-to-br from-indigo-50/70 to-sky-50/50 border border-indigo-200/80 hover:border-indigo-300 rounded-2xl shadow-2xs transition-all cursor-pointer group hover:shadow-xs"
-            >
-             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                <Landmark className="w-4 h-4" />
-               </div>
-               <div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 transition">
-                 国策法令与内阁智库
-                </h4>
-                <p className="text-[10px] text-slate-500">
-                 施行中法令: {myNation.activeDecreeIds?.length || 1} 项 · 内阁 4 部已就任
-                </p>
-               </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 text-[10px] font-extrabold font-mono">
-               法令树
-              </span>
-             </div>
-            </div>
-
-            {/* 3. 国际阵营与多边外交 */}
-            <div
-             onClick={handleOpenAlliancePage}
-             className="p-3.5 bg-gradient-to-br from-sky-50/70 to-emerald-50/50 border border-sky-200/80 hover:border-sky-300 rounded-2xl shadow-2xs transition-all cursor-pointer group hover:shadow-xs"
-            >
-             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
-                <Globe className="w-4 h-4" />
-               </div>
-               <div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-sky-700 transition">
-                 国际同盟与使馆租借
-                </h4>
-                <p className="text-[10px] text-slate-500">
-                 {myNation.allianceId ? '已加入跨国条约同盟' : '多国阵营 · 租借法案与常驻使馆'}
-                </p>
-               </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-lg bg-sky-100 text-sky-800 text-[10px] font-extrabold font-mono">
-               同盟
-              </span>
-             </div>
-            </div>
-
-            {/* 4. 勋章荣誉与大事记编年史 */}
-            <div
-             onClick={() => setChronicleModalOpen(true)}
-             className="p-3.5 bg-gradient-to-br from-amber-50/70 to-yellow-50/50 border border-amber-200/80 hover:border-amber-300 rounded-2xl shadow-2xs transition-all cursor-pointer group hover:shadow-xs"
-            >
-             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
-                <BookOpen className="w-4 h-4" />
-               </div>
-               <div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-700 transition">
-                 功勋勋章与大事记典籍
-                </h4>
-                <p className="text-[10px] text-slate-500">
-                 国家百科档案 · 国歌定制 · 全国紧急公报
-                </p>
-               </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 text-[10px] font-extrabold font-mono">
-               荣誉厅
-              </span>
-             </div>
-            </div>
-           </div>
-          </div>
-
-          {/* Territory Full-width Card */}
-          <div className="p-4 sm:p-4.5 bg-white border border-slate-200 shadow-2xs rounded-xl sm:rounded-2xl space-y-1.5">
-           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-            <MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <span>国家疆域范围</span>
-           </div>
-           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{myNation.territory}</p>
-          </div>
-
-          {/* Lore Description Full-width Card */}
-          <div className="p-4 sm:p-4.5 bg-white border border-slate-200 shadow-2xs rounded-xl sm:rounded-2xl space-y-1.5">
-           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-            <BookOpen className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-            <span>国家立国誓约与简介</span>
-           </div>
-           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-            {myNation.description}
-           </p>
-          </div>
-
-          {/* Active Wars Section */}
-          <div className="p-5 bg-white border border-slate-200 shadow-sm rounded-2xl space-y-3">
-           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-rose-600 flex items-center gap-2">
-             <Swords className="w-4 h-4" />
-             当前进行中的战争 ({myNation.activeWars?.length || 0})
-            </span>
-           </div>
-
-           {(myNation.activeWars || []).length === 0 ? (
-            <p className="text-sm text-slate-500">我国目前与所有邻国保持和平，无任何交战记录。</p>
-           ) : (
-            <div className="space-y-2">
-             {(myNation.activeWars || []).map((w, idx) => (
-              <div
-               key={'my-war-' + idx}
-               className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between text-sm"
-              >
-               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center">
-                 <Swords className="w-4 h-4" />
-                </div>
-                <div>
-                 <span className="font-bold text-slate-900">敌对国家：【{w.withNationName}】</span>
-                 <span className="text-xs text-slate-500 block mt-0.5">
-                  {w.initiatedByMe ? '我国主动下达宣战通牒' : '对方对我方宣战'} · 开战时间：{new Date(w.since).toLocaleDateString()}
-                 </span>
-                </div>
-               </div>
-
-               <button
-                type="button"
-                onClick={() => {
-                 const targetN = nations.find((n) => n.id === w.withNationId);
-                 if (targetN) handleOpenDiplomacy(targetN, 'armistice');
-                }}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-xs shadow-sm transition cursor-pointer"
-               >
-                提议停战
-               </button>
-              </div>
-             ))}
-            </div>
-           )}
-          </div>
-
-          {/* Active Treaties Section */}
-          <div className="p-5 bg-white border border-slate-200 shadow-sm rounded-2xl space-y-3">
-           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-indigo-600 flex items-center gap-2">
-             <HeartHandshake className="w-4 h-4" />
-             我国已签署生效的外交条约 ({myNation.activeTreaties?.length || 0})
-            </span>
-           </div>
-
-           {(myNation.activeTreaties || []).length === 0 ? (
-            <p className="text-sm text-slate-500">我国暂未与其他国家签署任何公开条约。</p>
-           ) : (
-            <div className="space-y-2">
-             {(myNation.activeTreaties || []).map((t) => {
-              const typeNames: Record<string, string> = {
-               peace: '和平条约',
-               mutual_defense: '互保防御同盟',
-               military_access: '军事通行权',
-              };
-
-              return (
-               <div
-                key={t.id}
-                className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-sm"
-               >
-                <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center">
-                  {t.type === 'peace' && <HeartHandshake className="w-4 h-4 text-emerald-500" />}
-                  {t.type === 'mutual_defense' && <ShieldCheck className="w-4 h-4 text-indigo-500" />}
-                  {t.type === 'military_access' && <Compass className="w-4 h-4 text-sky-500" />}
-                 </div>
-                 <div>
-                  <span className="font-bold text-slate-900">【{t.withNationName}】</span>
-                  <span className="text-slate-500 text-xs ml-2">
-                   （条约类型：{typeNames[t.type] || t.type}）
-                  </span>
-                 </div>
-                </div>
-
-                <button
-                 type="button"
-                 onClick={() => handleTerminateTreaty(t.id, t.withNationName)}
-                 className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
-                >
-                 单方面废约
-                </button>
-               </div>
-              );
-             })}
-            </div>
-           )}
-          </div>
-         </>
+          <NationalStrategicDossier
+           nation={myNation}
+           isOwner={true}
+           allNations={nations}
+           onEdit={(n) => handleEditNation(n)}
+           onDelete={(n) => handleDeleteNation(n)}
+           onOpenDispute={(n) => handleOpenDispute(n)}
+           onOpenDecrees={() => setDecreeModalOpen(true)}
+           onOpenAlliance={handleOpenAlliancePage}
+           onOpenChronicle={() => setChronicleModalOpen(true)}
+           onOpenEconomy={() => setMyNationSubTab("economy")}
+           onOpenMilitary={() => setMyNationSubTab("military")}
+           onOpenDiplomacy={(n, type) => handleOpenDiplomacy(n, type)}
+           onTerminateTreaty={handleTerminateTreaty}
+          />
         )}
        </div>
       )}
@@ -1438,6 +1203,7 @@ function MainApp() {
        onBuildInProvince={handleBuildInProvince}
        onOpenDispute={handleOpenDispute}
        onOpenArmyCommand={() => setActiveTab('army')}
+       onOpenResources={() => setActiveTab('resources')}
       />
      </motion.div>
     )}
@@ -1457,7 +1223,7 @@ function MainApp() {
 
     {/* VIEW: DEMOGRAPHICS (人口社会动态系统) */}
     {activeTab === 'demographics' && (
-     <div className="flex-1 animate-fadeIn px-3 sm:px-5 lg:px-7 py-4 sm:py-6">
+     <div className="flex-1 animate-fadeIn">
       <DemographicsView nation={myNation} onNavigateTab={setActiveTab} />
      </div>
     )}
@@ -1506,7 +1272,14 @@ function MainApp() {
       <NationalFocusTreePage
        nation={myNation}
        onUpdateNation={persistNationUpdate}
-       onNavigateTab={setActiveTab}
+       onClose={() => {
+        setMyNationSubTab('overview');
+        setActiveTab('lobby');
+       }}
+       onNavigateTab={(tab) => {
+        setMyNationSubTab('overview');
+        setActiveTab(tab as any);
+       }}
       />
      </div>
     )}
@@ -1566,6 +1339,12 @@ function MainApp() {
 
    {/* Modals */}
    <BugFeedbackModal isOpen={bugFeedbackOpen} onClose={() => setBugFeedbackOpen(false)} />
+
+   <AdminAuthModal
+    isOpen={adminAuthModalOpen}
+    onClose={() => setAdminAuthModalOpen(false)}
+    onSuccess={(msg) => showToast(msg)}
+   />
 
    <AuthModal
     isOpen={authModalOpen}
@@ -1728,6 +1507,7 @@ function MainApp() {
     }}
    />
   </div>
+  </>
  );
 }
 

@@ -56,18 +56,47 @@ export type IdeologyType =
  | '民主主义'
  | '中立主义';
 
+export interface ProvinceStrategicResources {
+ oil?: number;
+ steel?: number;
+ aluminium?: number;
+ rubber?: number;
+ tungsten?: number;
+ chromium?: number;
+ iron?: number; // alias for steel
+ coal?: number; // alias
+}
+
+export interface ResourceTradeDeal {
+ id: string;
+ exporterNationId: string;
+ exporterNationName: string;
+ importerNationId: string;
+ importerNationName: string;
+ resourceType: 'oil' | 'steel' | 'aluminium' | 'rubber' | 'tungsten' | 'chromium';
+ amount: number; // units per day (e.g. 8)
+ civFactoryCost: number; // civilian factories committed (e.g. 1 factory per 8 units)
+ pricePerDay?: number;
+ startedAt: string;
+ durationDays?: number;
+ status: 'active' | 'cancelled' | 'expired';
+}
+
 export interface ProvinceData {
  id: string | number;
  name: string;
  civilianFactories: number;
  militaryFactories: number;
+ factories?: number;
+ isCoastal?: boolean;
  detailedBuildings?: Partial<ProvinceDetailedBuildings>;
  manpower?: number;
  population?: number;
+ resources?: ProvinceStrategicResources;
  // Territory Core State
  isCore?: boolean;
  acquiredAt?: string;
- acquiredMethod?: 'initial' | 'peace_expansion' | 'conquest';
+ acquiredMethod?: 'initial' | 'peace_expansion' | 'conquest' | 'treaty_cession';
  // Dynamic Combat & Occupation
  occupationStatus?: 'peace' | 'combat' | 'occupied';
  occupationValue?: number; // 0 ~ 100
@@ -266,7 +295,13 @@ export interface Nation {
 
  // 7. 国家经济与财政系统
  currencySymbol?: string;
+ civilianFactories?: number;
+ militaryFactories?: number;
+ totalFactories?: number;
+ capitalId?: string | number;
  economy?: NationalEconomyState;
+ strategicResourceTradeDeals?: ResourceTradeDeal[];
+ strategicResourceStockpiles?: Record<string, number>;
 
  // 8. 国家战争与投降倾向机制 (Surrender / Capitulation System)
  surrenderProgress?: number; // 0 ~ 100 投降倾向动态值
@@ -463,8 +498,21 @@ export interface ArmisticeProposal {
 export interface PolicyDecree {
  id: string;
  name: string;
- category: 'economy' | 'military' | 'society' | 'diplomacy';
+ category: 'economy' | 'military' | 'society' | 'diplomacy' | 'technology';
+ branchId?: string;
+ branchName?: string;
+ tier?: number;
+ prerequisiteId?: string;
+ prerequisiteName?: string;
+ mutuallyExclusiveId?: string;
+ mutuallyExclusiveName?: string;
+ unlockCondition?: {
+  type: 'world_tension' | 'stability' | 'at_war' | 'factories';
+  threshold?: number;
+  description: string;
+ };
  description: string;
+ historicalContext?: string;
  iconName: string;
  effects: {
   stabilityBonus?: number;
@@ -693,6 +741,12 @@ export interface NationalFocusNode {
  mutuallyExclusive?: string[]; // 互斥国策 ID
  effects: FocusEffectItem[];
  description: string;
+ // 直接落成建造工厂 (建设样国策实装加成)
+ constructionBonus?: {
+  civilianFactories?: number; // 建造民用工厂数量
+  militaryFactories?: number; // 建造军用工厂数量
+  targetProvinceType?: 'capital' | 'core' | 'inland' | 'any'; // 优先建造省份类型
+ };
  // 布局坐标 (用于精准树状图渲染)
  colIndex?: number;
  rowIndex?: number;

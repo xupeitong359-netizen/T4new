@@ -21,11 +21,60 @@ import { getTotalMilitaryFactories } from '../lib/militaryIndustry';
 export const DEFAULT_ACTIVE_DECREE_IDS = ['decree_free_trade_port'];
 
 export const PRESET_DECREES: PolicyDecree[] = [
+ // 1. 经济与产业发展路线
+ {
+  id: 'decree_free_trade_port',
+  name: '自由贸易港与关税特区法',
+  category: 'economy',
+  branchId: 'branch_economy',
+  branchName: '经济与重工产业路线',
+  tier: 1,
+  description: '设立主权免税港口与万国通商走廊，激活民间商品交易与货币流通，使民工产值提高 25%。',
+  historicalContext: '通过对外开放与关税减免吸引跨大陆资本与国际商贾，奠定国家初级资本积累。',
+  iconName: 'Coins',
+  effects: {
+   civCapacityMultiplier: 0.25,
+   diploBonus: 15,
+   popularApprovalBonus: 10,
+   stabilityBonus: 5,
+  },
+  upkeepCostCiv: 800,
+ },
+ {
+  id: 'decree_heavy_industry_subsidy',
+  name: '重工业与冶金装备专项补贴',
+  category: 'economy',
+  branchId: 'branch_economy',
+  branchName: '经济与重工产业路线',
+  tier: 2,
+  prerequisiteId: 'decree_free_trade_port',
+  prerequisiteName: '自由贸易港与关税特区法',
+  description: '国家财政直注特种钢铁、精炼铝合金与重型发动机铸造厂，民工产出提升 20%，军工基础提升 10%。',
+  historicalContext: '完成早期轻工业积累后，将资源集中倾斜于基础重工业，为现代化国防奠定基石。',
+  iconName: 'Flame',
+  effects: {
+   civCapacityMultiplier: 0.2,
+   milCapacityMultiplier: 0.1,
+   stabilityBonus: 5,
+  },
+  upkeepCostCiv: 1600,
+ },
  {
   id: 'decree_war_economy',
-  name: '战时经济动员令',
+  name: '战时经济工业动员令',
   category: 'economy',
-  description: '征调民间产能转入军工生产线，全境军工厂产出提升 35%，但轻微降低民意支持度。',
+  branchId: 'branch_economy',
+  branchName: '经济与重工产业路线',
+  tier: 3,
+  prerequisiteId: 'decree_heavy_industry_subsidy',
+  prerequisiteName: '重工业与冶金装备专项补贴',
+  unlockCondition: {
+   type: 'world_tension',
+   threshold: 20,
+   description: '世界紧张度 ≥ 20% 或 处于战时状态',
+  },
+  description: '全面实施战时产能管制，征调所有民用流水线全力转入军工与弹药生产，军工产出暴增 35%。',
+  historicalContext: '面对地缘紧张或外部强敌威胁，强行压缩民用消费，集中一切物质力量服务国防。',
   iconName: 'Factory',
   effects: {
    milCapacityMultiplier: 0.35,
@@ -35,24 +84,17 @@ export const PRESET_DECREES: PolicyDecree[] = [
   },
   upkeepCostCiv: 1200,
  },
- {
-  id: 'decree_free_trade_port',
-  name: '自由贸易港与关税优惠',
-  category: 'economy',
-  description: '向万国商人开放边境免税港口，增加货币流动性与民工产值 25%，提升周边国家好感度。',
-  iconName: 'Coins',
-  effects: {
-   civCapacityMultiplier: 0.25,
-   diploBonus: 15,
-   popularApprovalBonus: 10,
-  },
-  upkeepCostCiv: 800,
- },
+
+ // 2. 国防防卫与军备体系路线
  {
   id: 'decree_mandatory_conscription',
-  name: '全民防卫强制服役法',
+  name: '常备国防义务服役法',
   category: 'military',
-  description: '推行全民后备役登记，大幅强化国防要塞防御力与装备列装速度，略微消耗民意。',
+  branchId: 'branch_military',
+  branchName: '国防动员与武装安全路线',
+  tier: 1,
+  description: '建立全境适役青年兵籍档案与预备役动员机制，大幅提升武装师团列装速度与军工厂产出。',
+  historicalContext: '居安思危的立国基石，确保危机时刻可在 48 小时内完成常备军快速扩编。',
   iconName: 'ShieldAlert',
   effects: {
    milCapacityMultiplier: 0.2,
@@ -62,10 +104,35 @@ export const PRESET_DECREES: PolicyDecree[] = [
   upkeepCostCiv: 1500,
  },
  {
+  id: 'decree_border_fortress_act',
+  name: '边境纵深防空与要塞法案',
+  category: 'military',
+  branchId: 'branch_military',
+  branchName: '国防动员与武装安全路线',
+  tier: 2,
+  prerequisiteId: 'decree_mandatory_conscription',
+  prerequisiteName: '常备国防义务服役法',
+  description: '在国境咽喉与战略省份构筑雷达站与永备地下工事，显著降低领土失陷风险，强化整体国防。',
+  historicalContext: '以坚固的防御节点和雷达早期预警链，让任何潜在入侵者望而却步。',
+  iconName: 'ShieldCheck',
+  effects: {
+   milCapacityMultiplier: 0.15,
+   stabilityBonus: 10,
+   diploBonus: -5,
+  },
+  upkeepCostCiv: 1800,
+ },
+
+ // 3. 社会契约与国家认同路线
+ {
   id: 'decree_cultural_renaissance',
   name: '文化繁荣与国家认同倡议',
   category: 'society',
-  description: '大力资助国家艺术院与历史档案馆，极大增强领主威望、民意支持度与全国稳定性。',
+  branchId: 'branch_society',
+  branchName: '社会契约与国家认同路线',
+  tier: 1,
+  description: '大力资助国家艺术院、历史档案馆与国民通识教育，极大增强领主威望与全国稳定性。',
+  historicalContext: '弘扬立国精神与历史荣光，凝结全体国民的文化归属感与爱国向心力。',
   iconName: 'Crown',
   effects: {
    stabilityBonus: 15,
@@ -75,10 +142,35 @@ export const PRESET_DECREES: PolicyDecree[] = [
   upkeepCostCiv: 1000,
  },
  {
+  id: 'decree_welfare_charter',
+  name: '国民福祉与劳工权益宪章',
+  category: 'society',
+  branchId: 'branch_society',
+  branchName: '社会契约与国家认同路线',
+  tier: 2,
+  prerequisiteId: 'decree_cultural_renaissance',
+  prerequisiteName: '文化繁荣与国家认同倡议',
+  description: '建立工伤抚恤、职业培训与公共医疗保障网络，民众拥戴度达到巅峰，吸引外来人口定居。',
+  historicalContext: '将国家财富切实转化为民生福祉，构建安居乐业、人人乐业的模范文明城邦。',
+  iconName: 'Scale',
+  effects: {
+   popularApprovalBonus: 25,
+   stabilityBonus: 12,
+   civCapacityMultiplier: 0.05,
+  },
+  upkeepCostCiv: 2200,
+ },
+
+ // 4. 尖端科技与学术战略路线
+ {
   id: 'decree_tech_leap',
   name: '国家尖端科学强国研发计划',
   category: 'military',
-  description: '设立最高科技奖章与雷达航空科研专项津贴，装备研发速度提升 30%。',
+  branchId: 'branch_technology',
+  branchName: '国家尖端科技与学术战略',
+  tier: 1,
+  description: '设立国家科学奖章与高新技术专项津贴，全军及工业科技研发速度直接提升 30%。',
+  historicalContext: '科技是第一战略生产力，通过国家集中投资攻坚前沿装备与高精尖工艺。',
   iconName: 'Zap',
   effects: {
    milCapacityMultiplier: 0.15,
@@ -87,19 +179,6 @@ export const PRESET_DECREES: PolicyDecree[] = [
    stabilityBonus: 8,
   },
   upkeepCostCiv: 2000,
- },
- {
-  id: 'decree_heavy_industry_subsidy',
-  name: '重工业战略发展补贴法',
-  category: 'economy',
-  description: '集中财政补贴钢铁、特种合金与发动机重型机械厂，全国基建施工速度提升 25%。',
-  iconName: 'Flame',
-  effects: {
-   civCapacityMultiplier: 0.2,
-   milCapacityMultiplier: 0.1,
-   stabilityBonus: 5,
-  },
-  upkeepCostCiv: 1600,
  },
 ];
 

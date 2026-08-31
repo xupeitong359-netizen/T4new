@@ -801,6 +801,46 @@ export const api = {
      user: publicUser(updatedUser),
     };
    }),
+
+  verifyAdminPassword: (adminPassword: string) =>
+   resolve<{ message: string; user: User }>(() => {
+    if (adminPassword !== ADMIN_ACCESS_PASSWORD) {
+     throw new ApiError('管理员密码不正确');
+    }
+    let user: DBUser | undefined;
+    const token = tokenStorage.get();
+    if (token) {
+     user = db.findUserById(token);
+    }
+    if (user) {
+     const updatedUser = db.updateUser(user.id, { role: 'admin' })!;
+     return {
+      message: '管理员最高权限已成功激活！',
+      user: publicUser(updatedUser),
+     };
+    } else {
+     let adminUser = db.findUserByDouyinName('大玲玉之光_Official');
+     if (!adminUser) {
+      adminUser = db.createUser({
+       id: 'usr_admin_master',
+       username: '大玲玉之光_Official',
+       password: 'adminPassword123',
+       douyinName: '大玲玉之光_Official',
+       role: 'admin',
+       avatarColor: '#4f46e5',
+       isLingyuBaby: true,
+       createdAt: new Date().toISOString(),
+      });
+     } else {
+      adminUser = db.updateUser(adminUser.id, { role: 'admin' })!;
+     }
+     tokenStorage.set(adminUser.id);
+     return {
+      message: '已成功以最高管理员身份登录！',
+      user: publicUser(adminUser),
+     };
+    }
+   }),
  },
 
  nations: {
@@ -870,12 +910,12 @@ export const api = {
       );
      }
 
-     // 核心判定：建国所选省份必须全部与初始省份相邻且连通一体
+     // 核心判定：建国所选省份必须全部相邻且连通一体
      if (p.provinces.length > 1) {
       const contiguity = checkProvincesContiguity(p.provinces);
       if (!contiguity.isContiguous) {
        throw new ApiError(
-        contiguity.message || '建国时所选省份必须与初始省份相邻且连成一体！'
+        contiguity.message || '建国时所选省份必须相邻且连成一体！'
        );
       }
      }
@@ -950,6 +990,13 @@ export const api = {
     const chosenIdeologyName = ideologyNameMap[rulingPartyKey] || '中立主义';
     const chosenRulingPartyTitle = partyNameZhMap[rulingPartyKey];
 
+    const foundingProvinces = (Array.isArray(p.provinces) ? p.provinces : []).map((prov: any) => ({
+     ...prov,
+     isCore: true,
+     acquiredMethod: 'founding',
+     occupationStatus: 'peace',
+    }));
+
     const newNation: DBNation = {
      id: 'nat_' + Math.random().toString(36).substring(2, 11),
      ownerId: user.id,
@@ -958,7 +1005,7 @@ export const api = {
      name: String(p.name).trim(),
      capital: String(p.capital).trim(),
      territory: computedTerritory,
-     provinces: Array.isArray(p.provinces) ? p.provinces : [],
+     provinces: foundingProvinces,
      description: p.description ? String(p.description).trim() : '暂无详细国家简介。',
      regime: p.regime || '君主立宪制',
      ideology: chosenIdeologyName as any,

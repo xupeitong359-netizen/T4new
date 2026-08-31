@@ -22,6 +22,7 @@ import {
  TacticalOilWellIcon,
  StrategicManpowerIcon,
  StrategicTerritoryIcon,
+ StrategicDossierIcon,
  StrategicTreatyIcon,
  StrategicWarfareIcon,
  StrategicIntelligenceIcon,

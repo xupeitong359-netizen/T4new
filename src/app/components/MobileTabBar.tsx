@@ -232,16 +232,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               setActiveTab('lobby');
               setIsCollapsed(false);
             }}
-            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center ${
+            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center ${
               activeTab === 'lobby'
-                ? 'text-indigo-600 font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 font-medium'
+                ? 'text-slate-900 font-medium'
+                : 'text-slate-400 font-medium'
             }`}
           >
             <span className="leading-tight">国家</span>
-            {activeTab === 'lobby' && (
-              <span className="w-4 h-0.5 bg-indigo-600 rounded-full mt-1 animate-fadeIn" />
-            )}
           </button>
 
           {/* Alliance: placed directly to the left of the world-map globe. */}
@@ -253,7 +250,11 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               if (myNation) onOpenAlliance();
               else onOpenCreateNation();
             }}
-            className="w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center text-slate-500 hover:text-indigo-700 font-medium"
+            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center ${
+              activeTab === 'alliances'
+                ? 'text-slate-900 font-medium'
+                : 'text-slate-400 font-medium'
+            }`}
             title={myNation ? '申请' : '先创建国家再申请'}
             aria-label="申请"
           >
@@ -297,16 +298,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
                 onOpenCreateNation();
               }
             }}
-            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center relative ${
+            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center ${
               activeTab === 'my_nation'
-                ? 'text-indigo-600 font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 font-medium'
+                ? 'text-slate-900 font-medium'
+                : 'text-slate-400 font-medium'
             }`}
           >
             <span className="leading-tight">{myNation ? '政府' : '建国'}</span>
-            {activeTab === 'my_nation' && (
-              <span className="w-4 h-0.5 bg-indigo-600 rounded-full mt-1 animate-fadeIn" />
-            )}
           </button>
 
           {/* Research Tab */}
@@ -317,16 +315,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
               setIsCollapsed(false);
               setActiveTab('research');
             }}
-            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center relative ${
+            className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center ${
               activeTab === 'research'
-                ? 'text-indigo-600 font-extrabold'
-                : 'text-slate-500 hover:text-slate-800 font-medium'
+                ? 'text-slate-900 font-medium'
+                : 'text-slate-400 font-medium'
             }`}
           >
             <span className="leading-tight">科研</span>
-            {activeTab === 'research' && (
-              <span className="w-4 h-0.5 bg-indigo-600 rounded-full mt-1 animate-fadeIn" />
-            )}
           </button>
 
           {/* Right Item 2: Admin Tab */}
@@ -338,16 +333,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
                 setActiveTab('admin');
                 setIsCollapsed(false);
               }}
-              className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center ${
+              className={`w-full min-w-0 min-h-11 py-1.5 text-center text-xs transition-colors duration-150 cursor-pointer flex flex-col items-center justify-center ${
                 activeTab === 'admin'
-                  ? 'text-rose-600 font-extrabold'
-                  : 'text-slate-500 hover:text-slate-800 font-medium'
+                  ? 'text-slate-900 font-medium'
+                  : 'text-slate-400 font-medium'
               }`}
             >
               <span className="leading-tight">管理</span>
-              {activeTab === 'admin' && (
-                <span className="w-4 h-0.5 bg-rose-600 rounded-full mt-1 animate-fadeIn" />
-              )}
             </button>
           )}
         </div>

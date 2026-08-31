@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext';
 import {
  renderEmblemIcon,
  StrategicTerritoryIcon,
+ StrategicDossierIcon,
+ StrategicTreatyIcon,
 } from '../lib/icons';
 import { calculateNationalStability } from '../services/strategicGameplayService';
 import { NationStateCore, NationStatusType } from './NationStateCore';
@@ -122,59 +124,101 @@ export const NationCard: React.FC<NationCardProps> = ({
      </div>
     </div>
 
-    <div>
-     {/* Footer Link */}
-     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
-      <span className="text-[11px] sm:text-xs font-semibold text-indigo-600 flex items-center gap-0.5 group-hover:gap-1 transition-all whitespace-nowrap shrink-0">
-       查看 <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-      </span>
-      
-      {/* Actions */}
-      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-       {onViewTerritory && (
-        <button
-         type="button"
-         onClick={() => onViewTerritory(nation)}
-         className="px-1.5 py-0.5 text-[10px] font-medium text-slate-600 hover:text-sky-600 hover:bg-sky-50 border border-slate-200 hover:border-sky-200 rounded transition flex items-center gap-0.5 whitespace-nowrap shrink-0 cursor-pointer"
-        >
-         <StrategicTerritoryIcon size={10} className="shrink-0" /> <span>疆域</span>
-        </button>
-       )}
-       
+    <div className="pt-1.5 border-t border-slate-100 mt-1 space-y-1">
+     {/* Action Buttons Grid Filling Card Width - Ultra-compact styling */}
+     <div className="grid grid-cols-2 gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+      <button
+       type="button"
+       onClick={() => onViewDetails(nation)}
+       className="h-6 w-full px-1.5 bg-indigo-50/80 hover:bg-indigo-100/90 text-indigo-700 font-semibold text-[10px] sm:text-[11px] border border-indigo-200/60 rounded transition-all active:scale-[0.98] flex items-center justify-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap overflow-visible shadow-2xs group/btn"
+       title="查看国牒"
+      >
+       <StrategicDossierIcon size={11} className="shrink-0 text-indigo-600 group-hover/btn:scale-105 transition-transform" />
+       <span className="shrink-0">查看国牒</span>
+       <ChevronRight className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+      </button>
+
+      {onViewTerritory ? (
+       <button
+        type="button"
+        onClick={() => onViewTerritory(nation)}
+        className="h-6 w-full px-1.5 bg-slate-50/90 hover:bg-sky-50 text-slate-700 hover:text-sky-700 font-semibold text-[10px] sm:text-[11px] border border-slate-200/80 hover:border-sky-200/80 rounded transition-all active:scale-[0.98] flex items-center justify-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap overflow-visible shadow-2xs group/btn"
+        title="疆域沙盘"
+       >
+        <StrategicTerritoryIcon size={11} className="shrink-0 text-slate-500 group-hover/btn:text-sky-600 group-hover/btn:scale-105 transition-transform" />
+        <span className="shrink-0">疆域沙盘</span>
+       </button>
+      ) : (
+       <button
+        type="button"
+        onClick={() => onOpenDiplomacy(nation)}
+        className="h-6 w-full px-1.5 bg-slate-50/90 hover:bg-slate-100 text-slate-700 font-semibold text-[10px] sm:text-[11px] border border-slate-200/80 rounded transition-all active:scale-[0.98] flex items-center justify-center gap-0.5 sm:gap-1 cursor-pointer whitespace-nowrap overflow-visible shadow-2xs group/btn"
+        title="外交公约"
+       >
+        <StrategicTreatyIcon size={11} className="shrink-0 text-slate-500 group-hover/btn:text-slate-700" />
+        <span className="shrink-0">外交公约</span>
+       </button>
+      )}
+     </div>
+
+     {/* Secondary Management Row if applicable */}
+     {(isMyNation || (isAdmin && !isMyNation)) && (
+      <div className="flex items-center gap-1.5 w-full pt-1" onClick={(e) => e.stopPropagation()}>
        {isMyNation && (
         <>
          <button
           type="button"
           onClick={() => onEdit(nation)}
-          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer"
-          title="编辑国家"
+          className="flex-1 py-1 px-2 text-[11px] font-medium text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-md transition flex items-center justify-center gap-1 cursor-pointer"
          >
-          <Edit3 className="w-3.5 h-3.5" />
+          <Edit3 className="w-3 h-3" />
+          <span>更迭政令</span>
          </button>
          <button
           type="button"
-          onClick={() => onDelete(nation)}
-          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-          title="删除国家"
+          disabled={(nation.activeWars || []).length > 0}
+          onClick={() => {
+           if ((nation.activeWars || []).length > 0) {
+            alert('处于战争状态时无法解散国家！');
+            return;
+           }
+           onDelete(nation);
+          }}
+          className={`py-1 px-2 text-[11px] font-medium border rounded-md transition flex items-center justify-center gap-1 ${
+           (nation.activeWars || []).length > 0
+            ? 'text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
+            : 'text-rose-600 hover:bg-rose-50 border-rose-200/80 cursor-pointer'
+          }`}
+          title={(nation.activeWars || []).length > 0 ? '处于战争状态时无法解散国家' : '解散国家'}
          >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3 h-3" />
          </button>
         </>
        )}
        {isAdmin && !isMyNation && (
-        <div className="flex items-center gap-1">
-         <button
-          type="button"
-          onClick={() => onDelete(nation)}
-          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-          title="管理删除"
-         >
-          <Trash2 className="w-3.5 h-3.5" />
-         </button>
-        </div>
+        <button
+         type="button"
+         disabled={(nation.activeWars || []).length > 0}
+         onClick={() => {
+          if ((nation.activeWars || []).length > 0) {
+           alert('处于战争状态时无法解散国家！');
+           return;
+          }
+          onDelete(nation);
+         }}
+         className={`w-full py-1 px-2 text-[11px] font-medium border rounded-md transition flex items-center justify-center gap-1 ${
+          (nation.activeWars || []).length > 0
+           ? 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed opacity-50'
+           : 'text-rose-600 hover:bg-rose-50 border-rose-200 cursor-pointer'
+         }`}
+         title={(nation.activeWars || []).length > 0 ? '处于战争状态时无法解散国家' : '管理终结归档'}
+        >
+         <Trash2 className="w-3 h-3" />
+         <span>管理终结归档</span>
+        </button>
        )}
       </div>
-     </div>
+     )}
     </div>
    </div>
   </div>

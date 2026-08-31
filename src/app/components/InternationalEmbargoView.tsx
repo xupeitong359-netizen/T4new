@@ -48,7 +48,7 @@ export const InternationalEmbargoView: React.FC<InternationalEmbargoViewProps> =
    reason: s.reason || '地缘争端与安全制裁',
    startedAt: s.since || new Date().toISOString(),
    elapsedDays: 18,
-   affectedResources: s.type === 'energy' ? ['oil', 'coal'] : s.type === 'arms' ? ['iron', 'aluminium', 'chromium'] : ['oil', 'coal', 'iron', 'rubber'],
+   affectedResources: s.type === 'energy' ? ['oil', 'rubber'] : s.type === 'arms' ? ['steel', 'aluminium', 'chromium'] : ['oil', 'steel', 'rubber', 'tungsten'],
    estimatedDailyTradeLossTreasury: 420,
    targetIndustrialPenaltyPercent: 15,
    status: 'active',

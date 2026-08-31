@@ -535,14 +535,14 @@ export function checkProvincesContiguity(
 
   return {
     isContiguous: false,
-    message: `建国省份判定：所选省份必须与初始省份相邻且连成一体！以下省份与主要领土不相连：${disconnected.join('、')}`,
+    message: `建国省份判定：所选省份必须相邻连通一体！以下省份与主要领土不相连：${disconnected.join('、')}`,
   };
 }
 
 /**
  * 获取建国圈地模式下当前可合法选取的省份 ID 集合。
  * - 当未选择任何省份时（selectedProvinces 为空），所有未被占领的省份均可作为初始省份。
- * - 当已有已选省份时，只有与当前已选省份相邻且未被占领的地块才可被选中。
+ * - 当已有已选省份时，只有与当前已选省份相邻且未被占领的地块才可被选中（已选省份也包含在内以支持取消选中）。
  */
 export function getValidCreationProvinceIds(
   selectedProvinces: Array<ProvinceData | { id: string | number; name?: string }>,

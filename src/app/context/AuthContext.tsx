@@ -24,6 +24,7 @@ interface AuthContextType {
  refreshUserData: () => Promise<void>;
  setMyNation: React.Dispatch<React.SetStateAction<Nation | null>>;
  toggleAdminRole: () => Promise<void>;
+ verifyAdminPassword: (password: string) => Promise<string>;
  updateUnreadCount: (count: number) => void;
 }
 
@@ -210,6 +211,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   storeSessionUser(res.user);
  }, [user]);
 
+ const verifyAdminPassword = useCallback(async (password: string) => {
+  const res = await api.auth.verifyAdminPassword(password);
+  setUser(res.user);
+  storeSessionUser(res.user);
+  if (res.user) {
+   setToken(res.user.id);
+  }
+  return res.message;
+ }, []);
+
  const updateUnreadCount = useCallback((count: number) => {
   setUnreadNotifsCount((prev) => (prev === count ? prev : count));
  }, []);
@@ -230,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    refreshUserData,
    setMyNation,
    toggleAdminRole,
+   verifyAdminPassword,
    updateUnreadCount,
   }),
   [
@@ -244,6 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    logout,
    refreshUserData,
    toggleAdminRole,
+   verifyAdminPassword,
    updateUnreadCount,
   ]
  );

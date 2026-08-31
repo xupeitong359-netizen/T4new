@@ -101,7 +101,7 @@ export const NationalStatusBar: React.FC<NationalStatusBarProps> = ({
       type="button"
       onClick={() => onNavigateTab('demographics')}
       className="flex items-center gap-1.5 px-2 py-1 hover:bg-slate-50 rounded-[4px] border border-transparent hover:border-slate-200 transition cursor-pointer"
-      title="人口社会系统：查看出生、死亡与多年增长曲线"
+      title="人口社会动态：单向稳定增长 (+0.01%/日) 与长期推演"
      >
       <Users className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
       <div className="flex items-center gap-1 font-mono">
@@ -156,11 +156,12 @@ export const NationalStatusBar: React.FC<NationalStatusBarProps> = ({
       </div>
      </button>
 
-     {/* 4. Strategic Resource Quick Strip (Oil, Iron, Chromium, Rubber) */}
+     {/* 4. Strategic Resource Quick Strip (Oil, Steel, Aluminium, Rubber, Tungsten, Chromium) */}
      <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-200">
-      {(['oil', 'iron', 'chromium', 'rubber'] as StrategicResourceType[]).map((key) => {
+      {(['oil', 'steel', 'aluminium', 'rubber', 'tungsten', 'chromium'] as StrategicResourceType[]).map((key) => {
        const res = resources[key];
        const def = STRATEGIC_RESOURCES[key];
+       if (!res || !def) return null;
        return (
         <button
          key={key}

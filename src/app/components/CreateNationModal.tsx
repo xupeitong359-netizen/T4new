@@ -10,7 +10,6 @@ import {
  Landmark,
  Scale,
  Sparkles,
- BookOpen,
  ArrowLeft,
  Check,
  Palette,
@@ -25,6 +24,7 @@ import {
  ArrowRightLeft,
  Crop,
  Heart,
+ User,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { TikTokIcon } from './TikTokIcon';
@@ -44,29 +44,19 @@ interface CreateNationModalProps {
  onMapModeChange?: (isSelecting: boolean) => void;
 }
 
-const REGIMES: RegimeType[] = [
- '君主立宪制',
- '联邦共和制',
- '宪政联邦共和制',
- '民主议会制',
- '封建帝国',
- '军政府/军国主义',
- '神权政体',
- '苏维埃代表制',
- '自由城邦自治',
- '其他特殊政体',
-];
+const partyToRegime: Record<'communist' | 'fascist' | 'democratic' | 'neutral', RegimeType> = {
+ communist: '苏维埃代表制',
+ fascist: '军政府/军国主义',
+ democratic: '民主议会制',
+ neutral: '君主立宪制',
+};
 
-const IDEOLOGIES: IdeologyType[] = [
- '中立和平主义',
- '自由民主主义',
- '扩张威权主义',
- '社群社会主义',
- '民族传统主义',
- '重商资本主义',
- '科技理性主义',
- '激进军国主义',
-];
+const partyToIdeology: Record<'communist' | 'fascist' | 'democratic' | 'neutral', IdeologyType> = {
+ communist: '共产主义',
+ fascist: '法西斯主义',
+ democratic: '民主主义',
+ neutral: '中立主义',
+};
 
 const FLAG_COLORS = [
  { name: '皇家紫', value: '#6366f1' },
@@ -91,9 +81,6 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
  const [name, setName] = useState('');
  const [capital, setCapital] = useState('');
  const [territory, setTerritory] = useState('');
- const [description, setDescription] = useState('');
- const [regime, setRegime] = useState<RegimeType>('君主立宪制');
- const [ideology, setIdeology] = useState<IdeologyType>('中立和平主义');
  const [selectedRulingParty, setSelectedRulingParty] = useState<'communist' | 'fascist' | 'democratic' | 'neutral'>('neutral');
  const [communistPartyName, setCommunistPartyName] = useState('人民劳动共产党');
  const [fascistPartyName, setFascistPartyName] = useState('国家复兴法西斯党');
@@ -152,7 +139,7 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
       return prev;
      }
 
-     // 核心判定：建国时新增省份必须与当前已有初始领土相邻！
+     // 核心判定：建国时新增省份必须与当前已有初始领土（任一已选省份）相邻！
      if (prev.length > 0) {
       const isAdjacent = isProvinceAdjacentToNation(id, prev, name) || isProvinceAdjacentToNation(name, prev);
       if (!isAdjacent) {
@@ -162,7 +149,7 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
      }
 
      setError(null);
-     const next = [...prev, { id, name, civilianFactories: 1, militaryFactories: 1 }];
+     const next = [...prev, { id, name, isCore: true, civilianFactories: 1, militaryFactories: 1 }];
      if (!capital) {
       setCapital(name);
      }
@@ -180,7 +167,7 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
        }
       }
       if (prev.length < maxAllowedProvinces) {
-       return [...prev, { id, name, civilianFactories: 1, militaryFactories: 1 }];
+       return [...prev, { id, name, isCore: true, civilianFactories: 1, militaryFactories: 1 }];
       }
      }
      return prev;
@@ -253,9 +240,9 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
     capital: capital.trim(),
     territory: territory.trim() || `领土由 ${provinces.map((p) => p.name).join('、')} 构成`,
     provinces,
-    description: description.trim() || '国家宣告正式立宪，万民归附，疆域奠定。',
-    regime,
-    ideology,
+    description: '国家宣告正式立宪，万民归附，疆域奠定。',
+    regime: partyToRegime[selectedRulingParty] || '君主立宪制',
+    ideology: partyToIdeology[selectedRulingParty] || '中立主义',
     rulingPartyId: selectedRulingParty,
     partyNames: {
      communist: communistPartyName.trim() || '人民劳动共产党',
@@ -491,54 +478,169 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
      style={{ backgroundColor: flagColor }}
     />
 
-    {/* Modal Header: Refined Light Purple-Blue Gradient & Structured Hierarchy */}
-    <div className="px-5 sm:px-7 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-shrink-0 relative">
-     <div className="flex items-center gap-3.5 min-w-0">
-      {/* Crown Avatar */}
-      <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-indigo-100 border border-indigo-100/80 flex items-center justify-center text-indigo-600 shadow-sm flex-shrink-0">
-       <Crown className="w-6 h-6 sm:w-6.5 sm:h-6.5 text-indigo-600 drop-shadow-xs" />
-      </div>
+    {/* Modal Header: High-End Strategic Sovereign State Profile Terminal Card */}
+    <div className="relative px-5 sm:px-8 pt-7 pb-6 bg-gradient-to-b from-[#f8faff]/98 via-[#f3f6fe]/95 to-[#edf2fb]/92 border-b border-indigo-100/70 overflow-hidden flex-shrink-0">
+     {/* Faint World Map & Tech Longitude Watermark Background */}
+     <svg
+      className="absolute inset-0 w-full h-full pointer-events-none opacity-20 text-indigo-400/40 select-none"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 800 240"
+      preserveAspectRatio="xMidYMid slice"
+     >
+      <defs>
+       <pattern id="cardDotGrid" width="16" height="16" patternUnits="userSpaceOnUse">
+        <circle cx="2" cy="2" r="0.75" fill="currentColor" fillOpacity="0.35" />
+       </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#cardDotGrid)" />
+      {/* Subtle Geo Map Contours on right */}
+      <path
+       d="M480,40 Q520,30 560,50 T620,80 T680,60 T740,110 T790,90 M500,120 Q540,110 590,140 T650,170 T720,150 T780,190 M450,160 Q490,180 540,170 T610,210"
+       fill="none"
+       stroke="currentColor"
+       strokeWidth="0.8"
+       strokeDasharray="3 4"
+      />
+      <circle cx="680" cy="110" r="3" fill="currentColor" fillOpacity="0.4" />
+      <circle cx="680" cy="110" r="14" fill="none" stroke="currentColor" strokeWidth="0.6" strokeDasharray="2 3" />
+      <line x1="20" y1="20" x2="780" y2="20" stroke="currentColor" strokeWidth="0.5" strokeDasharray="8 8" />
+     </svg>
 
-      {/* Title & Subtitle Hierarchy */}
-      <div className="min-w-0">
-       <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-        立国大典 · 宣告国家
-       </h2>
-       <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-slate-500">
-        <TikTokIcon className="w-3.5 h-3.5 text-slate-900" />
-        <span className="text-slate-600 font-medium">抖音用户</span>
-        <span className="px-1.5 py-0.5 rounded-md bg-indigo-50/90 text-indigo-700 font-bold text-[11px] border border-indigo-100/70">
-         {user?.douyinName || user?.username || '天下布武_Official'}
-        </span>
-       </div>
-       <p className="text-[11px] text-slate-400 mt-0.5 font-normal">
-        请确立您的疆域法统与首府，谱写帝国篇章
-       </p>
-      </div>
+     {/* Top Left: STATE PROFILE Label */}
+     <div className="absolute top-3.5 left-5 sm:left-7 flex items-center gap-2 pointer-events-none select-none z-10">
+      <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-slate-400 uppercase">
+       STATE PROFILE
+      </span>
      </div>
 
-     {/* Close button */}
+     {/* Top Right: Clean Minimalist Close Button */}
      <button
       id="create-nation-close-btn"
       type="button"
       onClick={onClose}
-      className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100/80 transition cursor-pointer -mr-1 flex-shrink-0"
+      className="absolute top-3.5 right-4 sm:top-3.5 sm:right-6 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer z-20"
       title="关闭"
      >
       <X className="w-5 h-5" />
      </button>
+
+     {/* Main Horizontal Header Content */}
+     <div className="flex items-center gap-4 sm:gap-5 relative z-10 pt-4 sm:pt-3">
+      {/* Architectural Sovereign Crest Container */}
+      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-sm flex items-center justify-center p-2.5 shrink-0 relative overflow-hidden">
+       {/* Subtle grid accent */}
+       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:8px_8px] pointer-events-none" />
+       
+       {/* Crisp Geometric Sovereign Crown */}
+       <svg
+        viewBox="0 0 100 90"
+        className="w-9 h-9 sm:w-10 sm:h-10 text-slate-100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+       >
+        <path
+         d="M16 28L32 64H68L84 28L63 48L50 16L37 48L16 28Z"
+         stroke="currentColor"
+         strokeWidth="4"
+         strokeLinecap="round"
+         strokeLinejoin="round"
+         fill="currentColor"
+         fillOpacity="0.15"
+        />
+        <polygon points="50,34 56,45 50,56 44,45" fill="#f59e0b" stroke="#fbbf24" strokeWidth="1.5" />
+        <rect x="22" y="72" width="56" height="4" rx="2" fill="currentColor" />
+       </svg>
+      </div>
+
+      {/* Text Information Hierarchy */}
+      <div className="min-w-0 flex-1">
+       <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+        立国大典
+       </h2>
+       <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+        宣告新国家成立
+       </p>
+
+       {/* Clean User Identity Tag */}
+       <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/90 border border-slate-200/80 text-[11px] font-semibold text-slate-600">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+        <span className="truncate max-w-[200px]">
+         {(user?.douyinName || user?.username || '战略试玩员4035').replace(/^领主[·・]/, '').replace(/_抖音$/, '')}
+        </span>
+       </div>
+      </div>
+     </div>
+    </div>
+
+    {/* 0. 四阶段进度导航 Stepper Bar (① 国家 → ② 首都 → ③ 领土 → ④ 政府) */}
+    <div className="px-5 sm:px-7 py-2.5 border-b border-slate-200/70 bg-slate-50/50">
+     <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+      {[
+       {
+        step: 1,
+        label: '国家',
+        isDone: Boolean(name.trim()),
+        isCurrent: !name.trim(),
+       },
+       {
+        step: 2,
+        label: '首都',
+        isDone: Boolean(capital),
+        isCurrent: Boolean(name.trim()) && !capital,
+       },
+       {
+        step: 3,
+        label: '领土',
+        isDone: provinces.length > 0,
+        isCurrent: Boolean(capital) && provinces.length === 0,
+       },
+       {
+        step: 4,
+        label: '政府',
+        isDone: Boolean(selectedRulingParty),
+        isCurrent: provinces.length > 0,
+       },
+      ].map(({ step, label, isDone, isCurrent }) => {
+       // 未完成步骤保持中性浅灰色，不让未完成的步骤看起来像已完成
+       const statusClasses = isDone
+        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+        : isCurrent
+        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-2xs'
+        : 'bg-white/80 border-slate-200/70 text-slate-400';
+
+       const badgeClasses = isDone
+        ? 'bg-emerald-600 text-white'
+        : isCurrent
+        ? 'bg-indigo-600 text-white'
+        : 'bg-slate-100 border border-slate-200 text-slate-400';
+
+       return (
+        <div
+         key={step}
+         className={`flex items-center gap-1.5 sm:gap-2 py-1.5 px-2 rounded-lg border transition-all text-xs font-semibold ${statusClasses}`}
+        >
+         <span
+          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badgeClasses}`}
+         >
+          {isDone ? '✓' : step}
+         </span>
+         <span className="truncate">{label}</span>
+        </div>
+       );
+      })}
+     </div>
     </div>
 
     {/* Error notice */}
     {error && (
-     <div className="mx-5 sm:mx-7 mt-3 p-3 bg-rose-50/90 border border-rose-200/80 rounded-2xl text-xs text-rose-700 font-medium flex items-center gap-2 shadow-xs">
+     <div className="mx-5 sm:mx-7 mt-3 p-3 bg-rose-50/90 border border-rose-200/80 rounded-xl text-xs text-rose-700 font-medium flex items-center gap-2 shadow-xs">
       <Shield className="w-4 h-4 text-rose-500 flex-shrink-0" />
       <span>{error}</span>
      </div>
     )}
 
     {/* Main scrollable body */}
-    <form onSubmit={handleSubmit} className="px-5 sm:px-7 py-5 overflow-y-auto flex-1 space-y-5">
+    <form onSubmit={handleSubmit} className="px-5 sm:px-7 py-4 overflow-y-auto flex-1 space-y-4">
      {/* 1. 国家名称（国号） */}
      <div>
       <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
@@ -555,62 +657,47 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="例：大玲玉帝国"
-        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder:text-slate-400/90 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
+        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
        />
       </div>
      </div>
 
-     {/* 2. 首都（首府） */}
-     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-       <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5 whitespace-nowrap shrink-0">
-        <Landmark className="w-4 h-4 text-amber-500 shrink-0" />
-        <span>核心首都（首府）</span>
-        <span className="text-rose-500 ml-0.5">*</span>
-       </label>
+     {/* 2. 核心首都 Core Capital Strategic Card */}
+     <div className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 bg-white shadow-2xs space-y-2.5">
+      <div className="flex items-center justify-between">
+       <div>
+        <div className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">
+         CORE CAPITAL
+        </div>
+        <div className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+         <Landmark className="w-4 h-4 text-orange-500 shrink-0" />
+         <span>核心首都</span>
+         <span className="text-rose-500 text-xs">*</span>
+        </div>
+       </div>
+
        {capital && (
-        <span className="text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap shrink-0">
-         <Star className="w-3 h-3 fill-amber-500 text-amber-500 shrink-0" />
+        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 flex items-center gap-1">
+         <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
          已确立首府
         </span>
        )}
       </div>
 
       {!capital ? (
-       <button
-        type="button"
-        onClick={() => {
-         setMapSelectSubMode('capital');
-         setIsSelectingOnMap(true);
-         onEnterMapMode?.();
-        }}
-        className="w-full h-12 px-4 bg-gradient-to-r from-amber-500/5 via-slate-50 to-indigo-50/20 hover:from-amber-500/10 hover:to-indigo-50/40 border-2 border-dashed border-amber-300/80 hover:border-amber-500 rounded-2xl text-xs sm:text-sm text-slate-600 hover:text-amber-700 font-semibold flex items-center justify-between transition cursor-pointer group shadow-2xs"
-       >
-        <div className="flex items-center gap-2.5">
-         <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-          <MapPin className="w-4 h-4" />
+       /* 未选择状态 */
+       <div className="p-3 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/60 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+         <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full border border-slate-400 bg-white shrink-0" />
+          <span>尚未选择</span>
          </div>
-         <span>选择首都</span>
+         <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+          选择一块领土作为国家首都
+         </p>
         </div>
-        <div className="flex items-center gap-1 text-amber-600 text-xs font-bold whitespace-nowrap shrink-0">
-         <span>选择地块</span>
-         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </div>
-       </button>
-      ) : (
-       <div className="relative flex items-center bg-gradient-to-r from-amber-50/60 to-white border border-amber-200/90 focus-within:border-amber-500 focus-within:ring-4 focus-within:ring-amber-500/10 rounded-2xl h-12 px-3.5 transition-all shadow-xs">
-        <div className="w-7 h-7 rounded-xl bg-amber-100/90 text-amber-700 flex items-center justify-center flex-shrink-0 mr-2.5 shadow-2xs">
-         <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-        </div>
-        <input
-         id="input-nation-capital"
-         type="text"
-         required
-         value={capital}
-         onChange={(e) => setCapital(e.target.value)}
-         placeholder="请输入或选择首都名称"
-         className="w-full bg-transparent text-sm font-bold text-slate-900 focus:outline-none"
-        />
+
+        {/* 一级操作：白色背景 + 橙色描边/文字 */}
         <button
          type="button"
          onClick={() => {
@@ -618,74 +705,113 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
           setIsSelectingOnMap(true);
           onEnterMapMode?.();
          }}
-         className="flex-shrink-0 ml-1.5 px-2.5 py-1 text-xs font-bold text-amber-700 bg-amber-100/80 hover:bg-amber-200/80 rounded-xl transition cursor-pointer flex items-center gap-1 whitespace-nowrap"
-         title="在地图上重新圈定首都"
+         className="h-8 px-3 bg-white hover:bg-orange-50/70 text-orange-600 border border-orange-300 hover:border-orange-400 text-xs font-bold rounded-lg transition shadow-2xs flex items-center gap-1 cursor-pointer shrink-0 active:scale-95"
         >
-         <Compass className="w-3.5 h-3.5 shrink-0" />
-         <span>地图重选</span>
+         <span>选择地块</span>
+         <ChevronRight className="w-3.5 h-3.5" />
         </button>
        </div>
-      )}
-
-      {/* Quick Capital Selection from Territory chips */}
-      {provinces.length > 0 && (
-       <div className="mt-2 p-2.5 bg-slate-50/80 border border-slate-200/70 rounded-2xl">
-        <div className="flex items-center justify-between mb-1.5 text-[11px] text-slate-500">
-         <span className="font-medium">从当前已选领土快速指定首都：</span>
-         <span className="text-[10px] text-slate-400">点击省份设为首都</span>
+      ) : (
+       /* 已选择状态 */
+       <div className="p-3 rounded-lg border border-slate-200/90 bg-slate-50/50 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+         <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+          <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+         </div>
+         <div className="min-w-0">
+          <div className="text-sm font-black text-slate-900 tracking-tight truncate flex items-center gap-1">
+           <span>★</span>
+           <span>{capital}</span>
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+           首府行政区 · 国家法统中枢
+          </div>
+         </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
-         {provinces.map((p) => {
-          const isSelected = capital === p.name;
-          return (
-           <button
-            key={p.id}
-            type="button"
-            onClick={() => setCapital(p.name)}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border whitespace-nowrap shrink-0 ${
-             isSelected
-              ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-              : 'bg-white hover:bg-amber-50/70 text-slate-700 border-slate-200 hover:border-amber-200'
-            }`}
-           >
-            {isSelected && <Star className="w-3 h-3 fill-white text-white shrink-0" />}
-            <span>{p.name}</span>
-           </button>
-          );
-         })}
+
+        {/* 二级操作：更换 */}
+        <div className="flex items-center gap-2 shrink-0">
+         <button
+          type="button"
+          onClick={() => {
+           setMapSelectSubMode('capital');
+           setIsSelectingOnMap(true);
+           onEnterMapMode?.();
+          }}
+          className="h-7 px-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition cursor-pointer flex items-center gap-1 shadow-2xs"
+         >
+          <span>更换</span>
+          <ChevronRight className="w-3 h-3" />
+         </button>
         </div>
        </div>
       )}
      </div>
 
-     {/* 3. 初始领土 */}
-     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-       <div className="flex items-center gap-2 flex-wrap min-w-0">
-        <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5 whitespace-nowrap shrink-0">
-         <Compass className="w-4 h-4 text-indigo-600 shrink-0" />
+     {/* 3. 初始领土 Initial Territory Card */}
+     <div className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 bg-white shadow-2xs space-y-2.5">
+      <div className="flex items-center justify-between">
+       <div>
+        <div className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">
+         INITIAL TERRITORY
+        </div>
+        <div className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+         <Compass className="w-4 h-4 text-orange-500 shrink-0" />
          <span>初始领土</span>
-         <span className="text-rose-500 ml-0.5">*</span>
-        </label>
-        <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold whitespace-nowrap shrink-0">
-         {provinces.length}/{maxAllowedProvinces} 个省份
-        </span>
+         <span className="text-rose-500 text-xs">*</span>
+        </div>
        </div>
 
-       {provinces.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+       {/* 三级信息：0 / 11 个省份 */}
+       <div className="text-right">
+        <div className="text-sm font-mono font-bold text-slate-900 tracking-tight">
+         <span className={provinces.length > 0 ? 'text-orange-600' : 'text-slate-500'}>{provinces.length}</span>
+         <span className="text-slate-400 text-xs font-normal mx-1">/</span>
+         <span className="text-slate-600 text-xs">{maxAllowedProvinces}</span>
+         <span className="text-slate-500 text-xs font-normal ml-1">个省份</span>
+        </div>
+       </div>
+      </div>
+
+      {/* 未选择状态：只保留一个最重要的主操作 */}
+      {provinces.length === 0 ? (
+       <div className="p-3 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/60 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+         <div className="text-xs font-bold text-slate-800 truncate">
+          在沙盘地图上圈选领土
+         </div>
+         <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+          选择相邻省份，建立你的初始版图
+         </div>
+        </div>
+
+        {/* 一级操作：白色背景 + 橙色描边/文字 */}
+        <button
+         type="button"
+         onClick={() => {
+          setMapSelectSubMode('territory');
+          setIsSelectingOnMap(true);
+          onEnterMapMode?.();
+         }}
+         className="h-8 px-3 bg-white hover:bg-orange-50/70 text-orange-600 border border-orange-300 hover:border-orange-400 text-xs font-bold rounded-lg transition shadow-2xs flex items-center gap-1 cursor-pointer shrink-0 active:scale-95"
+        >
+         <span>圈定地块</span>
+         <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+       </div>
+      ) : (
+       <div className="space-y-2">
+        {/* 二级辅助操作行：降级为文字与轻量操作 */}
+        <div className="flex items-center justify-between gap-2">
          <button
           type="button"
           onClick={() => setIsProvincesCollapsed(!isProvincesCollapsed)}
-          className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1 transition cursor-pointer whitespace-nowrap shrink-0"
+          className="text-xs text-slate-500 hover:text-slate-800 font-medium flex items-center gap-1 transition cursor-pointer p-0.5"
          >
-          <span>{isProvincesCollapsed ? `展开明细 (${provinces.length})` : '收起明细'}</span>
-          {isProvincesCollapsed ? (
-           <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-          ) : (
-           <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-          )}
+          <span>{isProvincesCollapsed ? `查看清单 (${provinces.length})` : '收起清单'}</span>
+          {isProvincesCollapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
          </button>
+
          <button
           type="button"
           onClick={() => {
@@ -693,136 +819,84 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
            setIsSelectingOnMap(true);
            onEnterMapMode?.();
           }}
-          className="px-3 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center gap-1.5 transition shadow-2xs border border-indigo-100 cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+          className="h-6 px-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200 transition cursor-pointer flex items-center gap-1 shadow-2xs"
          >
-          <Compass className="w-3.5 h-3.5 shrink-0" />
-          <span>地图圈划领土</span>
+          <Compass className="w-3 h-3 text-orange-500" />
+          <span>圈定地块</span>
          </button>
         </div>
-       )}
-      </div>
 
-      {/* Empty state: Clean single-row 42px select box */}
-      {provinces.length === 0 ? (
-       <button
-        type="button"
-        onClick={() => {
-         setMapSelectSubMode('territory');
-         setIsSelectingOnMap(true);
-         onEnterMapMode?.();
-        }}
-        className="w-full h-12 px-4 bg-slate-50/80 hover:bg-indigo-50/60 border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl text-xs sm:text-sm text-slate-500 hover:text-indigo-600 font-medium flex items-center justify-between transition cursor-pointer group mb-2"
-       >
-        <div className="flex items-center gap-2.5">
-         <div className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-          <Compass className="w-4 h-4" />
-         </div>
-         <span>选择领土</span>
-        </div>
-        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
-       </button>
-      ) : (
-       <div className="mb-2.5">
-        {/* Default Stacked Chips View (When Collapsed) */}
+        {/* 已选领土：轻量标签展示（★ 大伦敦地区 ×），绝不设计成大型按钮 */}
         {isProvincesCollapsed ? (
-         <div className="p-3 bg-slate-50/80 border border-slate-200/80 rounded-2xl">
-          <div className="flex items-center gap-1.5 flex-wrap">
-           {provinces.map((prov) => {
-            const isCap = capital === prov.name;
-            return (
-             <div
-              key={prov.id}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border shadow-2xs transition ${
-               isCap
-                ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold'
-                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-              }`}
-             >
-              {isCap ? (
-               <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-              ) : (
-               <MapPin className="w-3 h-3 text-slate-400" />
-              )}
-              <span className="max-w-[120px] truncate">{prov.name}</span>
-              <button
-               type="button"
-               onClick={(e) => {
-                e.stopPropagation();
-                setProvinces((prev) => {
-                 const next = prev.filter((p) => p.id !== prov.id);
-                 if (capital === prov.name) {
-                  setCapital(next.length > 0 ? next[0].name : '');
-                 }
-                 return next;
-                });
-               }}
-               className="text-slate-400 hover:text-rose-500 ml-0.5 p-0.5 rounded-full hover:bg-slate-100 transition"
-               title="移除"
-              >
-               <X className="w-3 h-3" />
-              </button>
-             </div>
-            );
-           })}
-          </div>
-         </div>
-        ) : (
-         /* Expanded Detailed Province Cards */
-         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+         <div className="p-2 bg-slate-50/80 rounded-lg border border-slate-200/80 flex flex-wrap gap-1.5">
           {provinces.map((prov) => {
            const isCap = capital === prov.name;
            return (
             <div
              key={prov.id}
-             className={`p-2.5 sm:p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 shadow-2xs ${
+             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border shadow-2xs transition ${
               isCap
-               ? 'bg-gradient-to-r from-amber-50/60 via-indigo-50/20 to-white border-amber-300 shadow-xs'
-               : 'bg-white border-slate-200/90 hover:border-slate-300'
+               ? 'bg-amber-50/90 border-amber-200 text-amber-900 font-bold'
+               : 'bg-white border-slate-200 text-slate-700'
              }`}
             >
-             <div className="flex items-center gap-2 min-w-0">
-              <div
-               className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isCap
-                 ? 'bg-amber-100 text-amber-600'
-                 : 'bg-slate-100 text-slate-600'
-               }`}
-              >
-               {isCap ? (
-                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-               ) : (
-                <MapPin className="w-3.5 h-3.5" />
-               )}
-              </div>
-              <div className="min-w-0">
-               <span
-                className="font-bold text-xs sm:text-sm text-slate-900 block truncate"
-                title={prov.name}
-               >
-                {prov.name}
-               </span>
-               <span className="text-[10px] text-slate-400 font-mono">
-                ID: {prov.id}
-               </span>
-              </div>
-             </div>
-
-             <div className="flex items-center gap-1.5 flex-shrink-0">
+             {isCap && <span className="text-amber-500 text-xs">★</span>}
+             <span className="max-w-[120px] truncate">{prov.name}</span>
+             <button
+              type="button"
+              onClick={(e) => {
+               e.stopPropagation();
+               setProvinces((prev) => {
+                const next = prev.filter((p) => p.id !== prov.id);
+                if (capital === prov.name) {
+                 setCapital(next.length > 0 ? next[0].name : '');
+                }
+                return next;
+               });
+              }}
+              className="text-slate-400 hover:text-rose-500 ml-0.5 p-0.5 cursor-pointer"
+              title="移除"
+             >
+              <X className="w-3 h-3" />
+             </button>
+            </div>
+           );
+          })}
+         </div>
+        ) : (
+         <div className="space-y-1 max-h-[200px] overflow-y-auto pr-1">
+          {provinces.map((prov) => {
+           const isCap = capital === prov.name;
+           return (
+            <div
+             key={prov.id}
+             className={`p-1.5 px-2.5 rounded-lg border flex items-center justify-between gap-2 text-xs ${
+              isCap ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/80'
+             }`}
+            >
+             <div className="flex items-center gap-1.5 min-w-0">
               {isCap ? (
-               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500 text-white text-xs font-bold shadow-2xs">
-                <Star className="w-3 h-3 fill-white text-white" />
-                核心首府
+               <span className="text-amber-500 font-bold">★</span>
+              ) : (
+               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+              )}
+              <span className="font-semibold text-slate-800 truncate">{prov.name}</span>
+              <span className="text-[10px] text-slate-400 font-mono">ID: {prov.id}</span>
+             </div>
+             <div className="flex items-center gap-1 shrink-0">
+              {isCap ? (
+               <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded">
+                首府
                </span>
               ) : (
                <button
                 type="button"
                 onClick={() => setCapital(prov.name)}
-                className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 text-xs font-semibold transition cursor-pointer border border-slate-200 hover:border-amber-200"
+                className="px-1.5 py-0.5 rounded text-[11px] font-medium text-slate-600 hover:text-amber-800 hover:bg-amber-50 border border-slate-200 transition cursor-pointer"
                >
                 设为首都
                </button>
               )}
-
               <button
                type="button"
                onClick={() => {
@@ -834,10 +908,10 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
                  return next;
                 });
                }}
-               className="p-1.5 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition cursor-pointer ml-0.5"
-               title="移除省份"
+               className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
+               title="移除"
               >
-               <X className="w-4 h-4" />
+               <X className="w-3 h-3" />
               </button>
              </div>
             </div>
@@ -849,168 +923,105 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
       )}
      </div>
 
-     {/* 4. 政体制度 */}
-     <div>
-      <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
-       政体制度
-      </label>
-      <div className="relative">
-       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 flex items-center justify-center pointer-events-none">
-        <Scale className="w-4 h-4" />
+     {/* 4. 政治制度与执政党 Political System Card */}
+     <div className="p-3.5 sm:p-4 rounded-xl border border-slate-200/90 bg-white shadow-2xs space-y-2.5">
+      <div>
+       <div className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">
+        POLITICAL SYSTEM
        </div>
-       <select
-        id="select-nation-regime"
-        value={regime}
-        onChange={(e) => setRegime(e.target.value as RegimeType)}
-        className="w-full pl-10 pr-8 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer font-medium"
-       >
-        {REGIMES.map((r) => (
-         <option key={r} value={r}>
-          {r}
-         </option>
-        ))}
-       </select>
-       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-      </div>
-     </div>
-
-     {/* 4.5 四大政党命名 */}
-     <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/90 space-y-3">
-      <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-       <label className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-        <Scale className="w-4 h-4 text-indigo-600" />
-        <span>政党命名</span>
-       </label>
-       <span className="text-[11px] text-slate-400 font-medium">
-        指定执政党（初始支持率 45%~70%）
-       </span>
+       <div className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+        <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
+        <span>政治制度与政党</span>
+       </div>
+       <p className="text-xs text-slate-500 mt-0.5">
+        确立意识形态与执政党
+       </p>
       </div>
 
-      {/* 4 Party Input Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-       {/* 1. 共产主义 */}
-       <div className={`p-2.5 rounded-xl border transition-all space-y-1.5 shadow-2xs ${selectedRulingParty === 'communist' ? 'bg-rose-50/40 border-rose-400 ring-2 ring-rose-400/20' : 'bg-white border-slate-200/80 hover:border-rose-200'}`}>
-        <div className="flex items-center justify-between">
-         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-          <span className="text-xs font-bold text-slate-800">共产主义</span>
-         </div>
-         {selectedRulingParty === 'communist' ? (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-600 text-white shadow-2xs">
-           ★ 执政党
-          </span>
-         ) : (
-          <button
-           type="button"
-           onClick={() => setSelectedRulingParty('communist')}
-           className="px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition cursor-pointer"
-          >
-           设为执政党
-          </button>
-         )}
-        </div>
-        <input
-         id="input-party-communist"
-         type="text"
-         value={communistPartyName}
-         onChange={(e) => setCommunistPartyName(e.target.value)}
-         placeholder="例：人民劳动共产党"
-         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-500/10 transition-all font-medium"
-        />
-       </div>
+      {/* 4 Ideology Horizontal Cards */}
+      <div className="space-y-1.5">
+       {[
+        {
+         id: 'communist' as const,
+         name: '共产主义',
+         colorDot: 'bg-rose-500',
+         value: communistPartyName,
+         setter: setCommunistPartyName,
+         placeholder: '例：人民劳动共产党',
+        },
+        {
+         id: 'democratic' as const,
+         name: '民主主义',
+         colorDot: 'bg-sky-500',
+         value: democraticPartyName,
+         setter: setDemocraticPartyName,
+         placeholder: '例：自由民主进步同盟',
+        },
+        {
+         id: 'neutral' as const,
+         name: '中立主义',
+         colorDot: 'bg-slate-400',
+         value: neutralPartyName,
+         setter: setNeutralPartyName,
+         placeholder: '例：国家中立秩序阵线',
+        },
+        {
+         id: 'fascist' as const,
+         name: '法西斯主义',
+         colorDot: 'bg-amber-700',
+         value: fascistPartyName,
+         setter: setFascistPartyName,
+         placeholder: '例：国家复兴法西斯党',
+        },
+       ].map((party) => {
+        const isSelected = selectedRulingParty === party.id;
+        return (
+         <div
+          key={party.id}
+          className={`p-2.5 rounded-lg border transition-all ${
+           isSelected
+            ? 'bg-slate-50/80 border-slate-800 shadow-2xs'
+            : 'bg-white border-slate-200/80 hover:border-slate-300'
+          }`}
+         >
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+           <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${party.colorDot} shrink-0`} />
+            <div className="flex items-center gap-2">
+             <span className="text-xs font-bold text-slate-900">
+              {party.name}
+             </span>
+             <span className="text-[10px] text-slate-400">
+              初始支持率 45–70%
+             </span>
+            </div>
+           </div>
 
-       {/* 2. 法西斯主义 */}
-       <div className={`p-2.5 rounded-xl border transition-all space-y-1.5 shadow-2xs ${selectedRulingParty === 'fascist' ? 'bg-amber-50/40 border-amber-700/50 ring-2 ring-amber-700/20' : 'bg-white border-slate-200/80 hover:border-amber-700/30'}`}>
-        <div className="flex items-center justify-between">
-         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-700"></span>
-          <span className="text-xs font-bold text-slate-800">法西斯主义</span>
-         </div>
-         {selectedRulingParty === 'fascist' ? (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-700 text-white shadow-2xs">
-           ★ 执政党
-          </span>
-         ) : (
-          <button
-           type="button"
-           onClick={() => setSelectedRulingParty('fascist')}
-           className="px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 hover:border-amber-700/30 transition cursor-pointer"
-          >
-           设为执政党
-          </button>
-         )}
-        </div>
-        <input
-         id="input-party-fascist"
-         type="text"
-         value={fascistPartyName}
-         onChange={(e) => setFascistPartyName(e.target.value)}
-         placeholder="例：国家复兴法西斯党"
-         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-600 focus:bg-white focus:ring-2 focus:ring-amber-600/10 transition-all font-medium"
-        />
-       </div>
+           {isSelected ? (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900 text-white flex items-center gap-1 shadow-2xs">
+             <span>✓ 执政党</span>
+            </span>
+           ) : (
+            <button
+             type="button"
+             onClick={() => setSelectedRulingParty(party.id)}
+             className="h-5 px-2 rounded text-[10px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+            >
+             设为执政党
+            </button>
+           )}
+          </div>
 
-       {/* 3. 民主主义 */}
-       <div className={`p-2.5 rounded-xl border transition-all space-y-1.5 shadow-2xs ${selectedRulingParty === 'democratic' ? 'bg-blue-50/40 border-blue-400 ring-2 ring-blue-400/20' : 'bg-white border-slate-200/80 hover:border-blue-200'}`}>
-        <div className="flex items-center justify-between">
-         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-          <span className="text-xs font-bold text-slate-800">民主主义</span>
+          <input
+           type="text"
+           value={party.value}
+           onChange={(e) => party.setter(e.target.value)}
+           placeholder={party.placeholder}
+           className="w-full px-2.5 py-1.5 bg-slate-50/70 border border-slate-200 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition font-medium"
+          />
          </div>
-         {selectedRulingParty === 'democratic' ? (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white shadow-2xs">
-           ★ 执政党
-          </span>
-         ) : (
-          <button
-           type="button"
-           onClick={() => setSelectedRulingParty('democratic')}
-           className="px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition cursor-pointer"
-          >
-           设为执政党
-          </button>
-         )}
-        </div>
-        <input
-         id="input-party-democratic"
-         type="text"
-         value={democraticPartyName}
-         onChange={(e) => setDemocraticPartyName(e.target.value)}
-         placeholder="例：自由民主进步同盟"
-         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 transition-all font-medium"
-        />
-       </div>
-
-       {/* 4. 中立主义 */}
-       <div className={`p-2.5 rounded-xl border transition-all space-y-1.5 shadow-2xs ${selectedRulingParty === 'neutral' ? 'bg-slate-100/70 border-slate-400 ring-2 ring-slate-400/20' : 'bg-white border-slate-200/80 hover:border-slate-300'}`}>
-        <div className="flex items-center justify-between">
-         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-          <span className="text-xs font-bold text-slate-800">中立主义</span>
-         </div>
-         {selectedRulingParty === 'neutral' ? (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-700 text-white shadow-2xs">
-           ★ 执政党
-          </span>
-         ) : (
-          <button
-           type="button"
-           onClick={() => setSelectedRulingParty('neutral')}
-           className="px-2 py-0.5 rounded-md text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 hover:border-slate-400 transition cursor-pointer"
-          >
-           设为执政党
-          </button>
-         )}
-        </div>
-        <input
-         id="input-party-neutral"
-         type="text"
-         value={neutralPartyName}
-         onChange={(e) => setNeutralPartyName(e.target.value)}
-         placeholder="例：国家中立秩序阵线"
-         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-500 focus:bg-white focus:ring-2 focus:ring-slate-500/10 transition-all font-medium"
-        />
-       </div>
+        );
+       })}
       </div>
      </div>
 
@@ -1221,27 +1232,7 @@ export const CreateNationModal: React.FC<CreateNationModalProps> = ({
       </div>
      </div>
 
-     {/* 6. 简介与立国誓词 */}
-     <div>
-      <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5">
-       国家简介与立国誓词
-      </label>
-      <div className="relative">
-       <div className="absolute left-3.5 top-3 text-slate-400 flex items-center justify-center pointer-events-none">
-        <BookOpen className="w-4 h-4" />
-       </div>
-       <textarea
-        id="textarea-nation-desc"
-        rows={2}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="书写您帝国的起源、宗旨与地缘宏愿..."
-        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none font-medium"
-       />
-      </div>
-     </div>
-
-     {/* 7. 国家旗帜 */}
+     {/* 6. 国家旗帜 */}
      <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-3.5">
       <div>
        <div className="mb-2">

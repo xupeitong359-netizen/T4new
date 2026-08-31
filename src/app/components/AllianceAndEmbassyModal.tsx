@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
- Globe,
- Users,
- Shield,
- Send,
- Building,
- Ban,
- Package,
- Plus,
- X,
- Sparkles,
- AlertTriangle,
+  Globe,
+  Users,
+  Shield,
+  Send,
+  Building,
+  Ban,
+  Package,
+  Plus,
+  X,
+  Sparkles,
+  AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import { Nation, AllianceFaction, LendLeaseOffer } from '../types';
 import { strategicStorage } from '../services/strategicGameplayService';
@@ -297,8 +298,8 @@ export const AllianceAndEmbassyModal: React.FC<AllianceAndEmbassyModalProps> = (
    <div
     className={
      isPage
-      ? 'w-full bg-[#fbfbf9] border border-slate-200/90 rounded-xs shadow-xs overflow-hidden flex flex-col min-h-[calc(100vh-8.5rem)] text-slate-800'
-      : 'w-full max-w-5xl bg-[#fbfbf9] border border-slate-200/90 rounded-xs shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800'
+      ? 'w-full bg-[#fbfbf9] border border-slate-200 rounded-sm shadow-xs overflow-hidden flex flex-col min-h-[calc(100vh-8.5rem)] text-slate-800'
+      : 'w-full max-w-5xl bg-[#fbfbf9] border border-slate-200 rounded-sm shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800'
     }
    >
     {/* Universal Tactical Header */}
@@ -314,7 +315,7 @@ export const AllianceAndEmbassyModal: React.FC<AllianceAndEmbassyModalProps> = (
     />
 
     {/* View Switcher Container */}
-    <div className="p-4 sm:p-5 overflow-y-auto flex-1 bg-[#fbfbf9] flex flex-col">
+    <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-[#fbfbf9] flex flex-col">
      {activeTab === 'lobby' && (
       <AllianceLobbyView
        alliances={alliances}
@@ -340,62 +341,74 @@ export const AllianceAndEmbassyModal: React.FC<AllianceAndEmbassyModalProps> = (
 
      {activeTab === 'petitions' && (
       <div className="space-y-4 max-w-3xl mx-auto w-full text-slate-800">
-       <div className="text-xs font-bold text-slate-900 flex items-center justify-between pb-2 border-b border-slate-200">
-        <span className="text-sm">本国发出的入盟外交照会 ({myOutgoingPetitions.length})</span>
-        <span className="text-xs text-slate-500 font-normal">待盟主委员会审批后正式生效</span>
+       <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs text-slate-500">
+        <h2 className="text-sm font-bold text-slate-900 tracking-tight">公约申请</h2>
+        <span className="font-mono">{myOutgoingPetitions.length} 份申请</span>
        </div>
 
        {myOutgoingPetitions.length === 0 ? (
-        <div className="p-12 text-center text-xs text-slate-500 bg-white border border-slate-200/90 rounded-xs space-y-3 shadow-2xs">
-         <div className="text-xs font-medium text-slate-700">暂无进行中的入盟外交照会</div>
-         <button
-          type="button"
-          onClick={() => setActiveTab('lobby')}
-          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xs text-xs cursor-pointer inline-flex items-center gap-1.5 transition-colors shadow-2xs"
-         >
-          前往联盟目录审阅公约
-         </button>
+        <div className="p-10 text-center text-xs text-slate-500 bg-white border border-slate-200 rounded-sm space-y-3">
+         <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+          <FileText className="w-4 h-4 stroke-[1.5]" />
+         </div>
+         <div className="space-y-0.5">
+          <div className="text-xs font-bold text-slate-800">暂无公约申请</div>
+          <p className="text-[11px] text-slate-400">可在联盟目录中申请加入多边同盟。</p>
+         </div>
+         <div className="pt-1">
+          <button
+           type="button"
+           onClick={() => setActiveTab('lobby')}
+           className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-sm text-xs cursor-pointer transition-colors"
+          >
+           浏览联盟目录
+          </button>
+         </div>
         </div>
        ) : (
-        myOutgoingPetitions.map(({ alliance, petition }) => (
-         <div
-          key={alliance.id}
-          className="p-4 bg-white border border-slate-200/90 rounded-xs space-y-2.5 text-xs shadow-2xs"
-         >
-          <div className="flex items-center justify-between">
-           <div className="flex items-center gap-2.5">
-            <div
-             className="w-7 h-7 rounded-xs border border-slate-700/60 flex items-center justify-center font-bold text-xs text-white shadow-2xs shrink-0 select-none"
-             style={{ backgroundColor: alliance.bannerColor || '#1e3a8a' }}
-            >
-             <span className="font-mono text-[10px]">{alliance.tag}</span>
+        <div className="bg-white border border-slate-200 rounded-sm divide-y divide-slate-100 overflow-hidden">
+         {myOutgoingPetitions.map(({ alliance, petition }) => (
+          <div
+           key={alliance.id}
+           className="p-4 space-y-2 text-xs"
+          >
+           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+             <div
+              className="w-7 h-7 rounded-sm flex items-center justify-center font-bold text-xs text-white shrink-0 select-none border border-black/10"
+              style={{ backgroundColor: alliance.bannerColor || '#1e3a8a' }}
+             >
+              <span className="font-mono text-[10px]">{alliance.tag}</span>
+             </div>
+             <div>
+              <div className="font-bold text-slate-900 text-xs">{alliance.name}</div>
+              <div className="text-[11px] text-slate-400 font-mono">盟主：{alliance.leaderNationName}</div>
+             </div>
             </div>
-            <div>
-             <div className="font-bold text-slate-900 text-xs">{alliance.name}</div>
-             <div className="text-[11px] text-slate-500 font-mono">盟主国：{alliance.leaderNationName}</div>
-            </div>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-sm text-[10px] font-medium">
+             等待审批
+            </span>
            </div>
-           <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xs text-[10px] font-medium">
-            等待盟主国审批
-           </span>
-          </div>
 
-          <p className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xs text-slate-700 text-xs leading-relaxed">
-           “{petition.reason || '谨向公约委员会申请加入同盟，共谋和平防务发展。'}”
-          </p>
+           {petition.reason && (
+            <p className="p-2 bg-slate-50 border border-slate-100 rounded-sm text-slate-600 text-xs leading-relaxed">
+             “{petition.reason}”
+            </p>
+           )}
 
-          <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[11px] text-slate-500 font-mono">
-           <span>递交时间：{new Date(petition.appliedAt).toLocaleString()}</span>
-           <button
-            type="button"
-            onClick={() => handleWithdrawPetition(alliance.id)}
-            className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded-xs text-xs font-medium cursor-pointer transition-colors"
-           >
-            撤回申请
-           </button>
+           <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400 font-mono">
+            <span>递交时间：{new Date(petition.appliedAt).toLocaleDateString()}</span>
+            <button
+             type="button"
+             onClick={() => handleWithdrawPetition(alliance.id)}
+             className="px-2.5 py-1 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-sm text-xs font-medium cursor-pointer transition-colors"
+            >
+             撤回申请
+            </button>
+           </div>
           </div>
-         </div>
-        ))
+         ))}
+        </div>
        )}
       </div>
      )}

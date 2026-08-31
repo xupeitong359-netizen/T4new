@@ -18,15 +18,15 @@ import { Nation, ProvinceData, ArmyDivision } from '../types';
 import { getTotalCivilianFactories } from './economyEngine';
 
 // -----------------------------------------------------------------------------
-// 1. 战略资源体系 (6大核心战略资源：石油、煤炭、铁矿、铝矿、铬、橡胶)
+// 1. 战略资源体系 (6大核心战略资源：石油、钢铁、铝、橡胶、钨、铬)
 // -----------------------------------------------------------------------------
 export type StrategicResourceType =
  | 'oil'
- | 'coal'
- | 'iron'
+ | 'steel'
  | 'aluminium'
- | 'chromium'
- | 'rubber';
+ | 'rubber'
+ | 'tungsten'
+ | 'chromium';
 
 export interface ResourceDefinition {
  id: StrategicResourceType;
@@ -51,62 +51,36 @@ export const STRATEGIC_RESOURCES: Record<StrategicResourceType, ResourceDefiniti
   badgeBg: 'bg-slate-900 text-amber-300 border-amber-500/30',
   badgeText: 'text-amber-400',
   icon: 'OIL',
-  description: '重装甲部队、航空兵团与现代海军的命脉动力血液。',
+  description: '重装甲部队、航空兵团、远洋战舰与现代后勤车队的命脉动力血液。',
   baseMarketPrice: 48,
-  militaryUsage: '机械化装甲突击、战术空袭、后勤车队燃料',
-  civilianUsage: '重化工业合成、燃油发电、远洋航运',
+  militaryUsage: '机械化装甲突击、战术空战轰炸、后勤补给车队、远洋舰船动力',
+  civilianUsage: '重化工业合成、燃油发电、现代远洋航运',
  },
- coal: {
-  id: 'coal',
-  name: '煤炭',
+ steel: {
+  id: 'steel',
+  name: '钢铁',
   unit: '吨',
-  color: '#334155',
-  badgeBg: 'bg-slate-800 text-slate-200 border-slate-600',
-  badgeText: 'text-slate-300',
-  icon: 'COAL',
-  description: '基础工业发电、重型钢铁冶炼与合成燃料的基础原料。',
-  baseMarketPrice: 20,
-  militaryUsage: '军工厂高炉冶炼、火药基础化工',
-  civilianUsage: '火电基荷电力、民用供暖、合成燃料',
- },
- iron: {
-  id: 'iron',
-  name: '铁矿',
-  unit: '吨',
-  color: '#b45309',
-  badgeBg: 'bg-amber-950 text-amber-200 border-amber-700',
-  badgeText: 'text-amber-400',
-  icon: 'FE',
-  description: '枪炮火炮、装甲车辆、铁道轨道与防线工事的坚固骨架。',
-  baseMarketPrice: 32,
-  militaryUsage: '枪炮火炮铸造、步兵武器装备、装甲底盘',
-  civilianUsage: '铁路路网扩建、民用工厂骨架、建筑基建',
+  color: '#475569',
+  badgeBg: 'bg-slate-800 text-slate-100 border-slate-600',
+  badgeText: 'text-slate-200',
+  icon: 'STEEL',
+  description: '单兵步枪枪械、大口径火炮、装甲底盘、舰体装甲与工业建设的坚固骨架。',
+  baseMarketPrice: 28,
+  militaryUsage: '单兵制式枪械、压制火炮铸造、装甲车体底盘、军用舰艇船体',
+  civilianUsage: '铁路轨道扩建、民用工厂骨架、大型桥梁与重工业建筑基建',
  },
  aluminium: {
   id: 'aluminium',
-  name: '铝矿',
+  name: '铝',
   unit: '吨',
   color: '#0284c7',
   badgeBg: 'bg-sky-950 text-sky-200 border-sky-600',
   badgeText: 'text-sky-400',
   icon: 'AL',
-  description: '战斗机翼身结构、轻量化引擎与无线电雷达元件的核心材料。',
+  description: '战斗机翼身结构、轻量化引擎机体与战术无线电雷达元件的核心材料。',
   baseMarketPrice: 42,
-  militaryUsage: '航空战机制造、精密火控雷达、高机动轻装甲',
-  civilianUsage: '高压电网输变电、现代汽车工业',
- },
- chromium: {
-  id: 'chromium',
-  name: '铬',
-  unit: '吨',
-  color: '#7c3aed',
-  badgeBg: 'bg-purple-950 text-purple-200 border-purple-600',
-  badgeText: 'text-purple-300',
-  icon: 'CR',
-  description: '重型装甲特种合金钢、高耐磨枪炮管与先进涡轮叶片的关键战略添加剂。',
-  baseMarketPrice: 75,
-  militaryUsage: '特种重装甲合金钢板、高膛压火炮炮管、航空涡轮发动机',
-  civilianUsage: '高端不锈钢、重工耐磨轴承、耐腐蚀特种工业装备',
+  militaryUsage: '主力航空战机制造、精密火控雷达、高机动轻装甲装具',
+  civilianUsage: '高压电网输变电、民用航空与现代汽车工业',
  },
  rubber: {
   id: 'rubber',
@@ -116,10 +90,36 @@ export const STRATEGIC_RESOURCES: Record<StrategicResourceType, ResourceDefiniti
   badgeBg: 'bg-emerald-950 text-emerald-200 border-emerald-600',
   badgeText: 'text-emerald-300',
   icon: 'RUB',
-  description: '卡车战车充气轮胎、飞机起落架减震轮与电气防水绝缘层的关键工业原料。',
+  description: '军用卡车充气防弹轮胎、战机起落架减震轮与电气防水绝缘层的关键工业原料。',
   baseMarketPrice: 55,
-  militaryUsage: '军用卡车与装甲车辆轮胎、战机起落架轮胎、战地绝缘防护',
-  civilianUsage: '民用运输车辆轮胎、工业输送带、电气绝缘器材',
+  militaryUsage: '军用越野运输卡车轮胎、战机起落架轮胎、装甲步战车、战地绝缘防护',
+  civilianUsage: '民用载重汽车轮胎、工业传动输送带、电气与医用绝缘器材',
+ },
+ tungsten: {
+  id: 'tungsten',
+  name: '钨',
+  unit: '吨',
+  color: '#d97706',
+  badgeBg: 'bg-amber-950 text-amber-200 border-amber-600',
+  badgeText: 'text-amber-300',
+  icon: 'W',
+  description: '超硬穿甲弹丸、重型加农火炮炮管与先进反坦克穿甲弹的核心特种战略金属。',
+  baseMarketPrice: 68,
+  militaryUsage: '高级压制火炮身管、穿甲重炮弹头、反坦克炮弹药、特种破甲弹',
+  civilianUsage: '重型耐磨机械切削刀具、耐高温电子电极、高温炉材',
+ },
+ chromium: {
+  id: 'chromium',
+  name: '铬',
+  unit: '吨',
+  color: '#7c3aed',
+  badgeBg: 'bg-purple-950 text-purple-200 border-purple-600',
+  badgeText: 'text-purple-300',
+  icon: 'CR',
+  description: '重型装甲特种合金钢、高耐磨枪炮管与先进战机涡轮叶片的关键战略添加剂。',
+  baseMarketPrice: 75,
+  militaryUsage: '特种重型装甲合金钢板、主力战舰主装甲带、航空涡轮发动机叶片',
+  civilianUsage: '高端不锈钢、重工高耐磨轴承、耐腐蚀特种工业装备',
  },
 };
 
@@ -225,16 +225,22 @@ export interface ProvinceTacticalState {
 
 // -----------------------------------------------------------------------------
 // 4. 国家人口动态模型 (Demographics Dynamics)
+// 规则：缓慢、稳定、单向增长机制。每日恒定 +0.01%，严格独立于战争、移民、政体、经济与稳定度
 // -----------------------------------------------------------------------------
+export const BASE_DAILY_POPULATION_GROWTH_RATE = 0.0001; // +0.01%/日 恒定基准增长率
+
 export interface DemographicsState {
  currentPopulation: number;
- annualGrowthRatePercent: number; // e.g. +1.35%
+ dailyGrowthRatePercent: number; // 恒定 +0.01%/日
+ annualGrowthRatePercent: number; // 恒定年化复合增长率 ~+3.72%/年
+ dailyNetGrowth: number; // 每日净增人口
  annualBirths: number;
- annualNaturalDeaths: number;
- annualNetGrowth: number;
- annualWarCasualties: number;
- annualRefugeesAndMigration: number;
- demographicHealthIndex: number; // 0 to 100
+ annualNaturalDeaths: number; // 规则：无负增长，为 0
+ annualNetGrowth: number; // 年度净增人口，严格单向增长
+ annualWarCasualties: number; // 规则：战争不削减总人口，为 0
+ annualRefugeesAndMigration: number; // 规则：移民不增减全国总人口，为 0
+ demographicHealthIndex: number; // 稳定度独立隔离指数 100
+ systemIndependenceStatus: string;
  projections: {
   spanLabel: string;
   years: number;
@@ -326,7 +332,7 @@ export interface InternationalEmbargoItem {
 /**
  * Generates realistic provincial resource deposits based on realistic global geology and province attributes.
  * 真实地质资源分布：有的多、有的少、有的没有。
- * 包含：石油 (Oil)、煤炭 (Coal)、铁矿 (Iron)、铝矿 (Aluminium)、铬 (Chromium)、橡胶 (Rubber)
+ * 包含：石油 (Oil)、钢铁 (Steel)、铝 (Aluminium)、橡胶 (Rubber)、钨 (Tungsten)、铬 (Chromium)
  */
 export function getProvinceResourceDeposits(
  provinceId: string | number,
@@ -337,32 +343,32 @@ export function getProvinceResourceDeposits(
  const name = String(provinceName || '').toLowerCase();
  const deposits: Partial<Record<StrategicResourceType, number>> = {};
 
- // If raw properties contain predefined HOI4 resources, incorporate and scale them
+ // If raw properties contain predefined resources, incorporate and scale them
  const rawResources = properties?.resources;
  if (rawResources && typeof rawResources === 'object') {
   if (typeof rawResources.oil === 'number' && rawResources.oil > 0) {
    deposits.oil = Math.round(rawResources.oil * 3.5);
   }
-  if (typeof rawResources.coal === 'number' && rawResources.coal > 0) {
-   deposits.coal = Math.round(rawResources.coal * 3.2);
-  }
   if (typeof rawResources.steel === 'number' && rawResources.steel > 0) {
-   deposits.iron = Math.round(rawResources.steel * 3.4);
+   deposits.steel = Math.round(rawResources.steel * 3.4);
   }
   if (typeof rawResources.iron === 'number' && rawResources.iron > 0) {
-   deposits.iron = Math.round(rawResources.iron * 3.4);
+   deposits.steel = Math.max(deposits.steel || 0, Math.round(rawResources.iron * 3.4));
+  }
+  if (typeof rawResources.coal === 'number' && rawResources.coal > 0) {
+   deposits.steel = Math.max(deposits.steel || 0, Math.round(rawResources.coal * 2.2));
   }
   if (typeof rawResources.aluminium === 'number' && rawResources.aluminium > 0) {
    deposits.aluminium = Math.round(rawResources.aluminium * 3.0);
+  }
+  if (typeof rawResources.tungsten === 'number' && rawResources.tungsten > 0) {
+   deposits.tungsten = Math.round(rawResources.tungsten * 3.2);
   }
   if (typeof rawResources.chromium === 'number' && rawResources.chromium > 0) {
    deposits.chromium = Math.round(rawResources.chromium * 3.0);
   }
   if (typeof rawResources.rubber === 'number' && rawResources.rubber > 0) {
    deposits.rubber = Math.round(rawResources.rubber * 3.8);
-  }
-  if (typeof rawResources.tungsten === 'number' && rawResources.tungsten > 0) {
-   deposits.chromium = (deposits.chromium || 0) + Math.round(rawResources.tungsten * 2.2);
   }
  }
 
@@ -410,90 +416,50 @@ export function getProvinceResourceDeposits(
   deposits.oil = 40 + (numId % 70);
  }
 
- // 2. 煤炭 (Coal) 真实地理产区分布 (鲁尔区、西里西亚、顿巴斯、山西、阿巴拉契亚、纽卡斯尔、库兹巴斯等)
+ // 2. 钢铁 (Steel) 真实地理产区分布 (鲁尔区、宾夕法尼亚、马格尼托哥尔斯克、鞍山、洛林、顿巴斯、西里西亚、谢菲尔德、八幡、皮尔巴拉等)
  if (
   name.includes('ruhr') ||
   name.includes('rhineland') ||
   name.includes('westphalia') ||
-  name.includes('saarland') ||
   name.includes('silesia') ||
-  name.includes('katowice') ||
   name.includes('donbass') ||
   name.includes('donetsk') ||
-  name.includes('luhansk') ||
-  name.includes('kuznetsk') ||
-  name.includes('kemerovo') ||
-  name.includes('karaganda') ||
-  name.includes('shanxi') ||
-  name.includes('taiyuan') ||
-  name.includes('datong') ||
-  name.includes('shaanxi') ||
-  name.includes('yulin') ||
-  name.includes('ordos') ||
-  name.includes('hebei') ||
-  name.includes('tangshan') ||
-  name.includes('pingdingshan') ||
-  name.includes('huainan') ||
-  name.includes('pennsylvania') ||
-  name.includes('pittsburgh') ||
-  name.includes('west virginia') ||
-  name.includes('kentucky') ||
-  name.includes('wyoming') ||
-  name.includes('yorkshire') ||
-  name.includes('newcastle') ||
-  name.includes('cardiff') ||
-  name.includes('wales') ||
-  name.includes('queensland') ||
-  name.includes('bowen') ||
-  name.includes('jharkhand') ||
-  name.includes('jharia') ||
-  name.includes('mpumalanga') ||
-  name.includes('witbank')
- ) {
-  deposits.coal = Math.max(deposits.coal || 0, 180 + (numId % 320));
- } else if (numId % 37 === 0) {
-  // 少量中小型煤矿
-  deposits.coal = 45 + (numId % 80);
- }
-
- // 3. 铁矿 (Iron) 真实地理产区分布 (基律纳、洛林、马格尼托哥尔斯克、克里沃罗格、皮尔巴拉、卡拉加斯、鞍山等)
- if (
-  name.includes('kiruna') ||
-  name.includes('norrbott') ||
-  name.includes('gallivare') ||
-  name.includes('lorraine') ||
-  name.includes('metz') ||
-  name.includes('briey') ||
+  name.includes('krivoy') ||
   name.includes('magnitogorsk') ||
   name.includes('chelyabinsk') ||
-  name.includes('krivoy') ||
-  name.includes('kursk') ||
-  name.includes('belgorod') ||
-  name.includes('pilbara') ||
-  name.includes('port hedland') ||
-  name.includes('carajas') ||
-  name.includes('minas gerais') ||
-  name.includes('itabira') ||
   name.includes('anshan') ||
   name.includes('liaoning') ||
+  name.includes('hebei') ||
+  name.includes('tangshan') ||
+  name.includes('wuhan') ||
+  name.includes('baotou') ||
   name.includes('panzhihua') ||
-  name.includes('daye') ||
+  name.includes('pennsylvania') ||
+  name.includes('pittsburgh') ||
   name.includes('mesabi') ||
   name.includes('minnesota') ||
-  name.includes('marquette') ||
+  name.includes('lorraine') ||
+  name.includes('metz') ||
+  name.includes('sheffield') ||
+  name.includes('wales') ||
+  name.includes('yawata') ||
+  name.includes('kyushu') ||
+  name.includes('kiruna') ||
+  name.includes('bergslagen') ||
+  name.includes('pilbara') ||
+  name.includes('carajas') ||
+  name.includes('minas gerais') ||
   name.includes('odisha') ||
-  name.includes('singhbhum') ||
-  name.includes('chhattisgarh') ||
-  name.includes('bailadila') ||
-  name.includes('sishen') ||
-  name.includes('bilbao')
+  name.includes('bhilai') ||
+  name.includes('bilbao') ||
+  name.includes('katowice')
  ) {
-  deposits.iron = Math.max(deposits.iron || 0, 190 + (numId % 340));
- } else if (numId % 41 === 0) {
-  deposits.iron = 50 + (numId % 90);
+  deposits.steel = Math.max(deposits.steel || 0, 180 + (numId % 320));
+ } else if (numId % 37 === 0) {
+  deposits.steel = 45 + (numId % 80);
  }
 
- // 4. 铝矿 (Aluminium/Bauxite) 真实地理产区分布 (几内亚、牙买加、苏里南、昆士兰、普罗旺斯、百色、山西等)
+ // 3. 铝 (Aluminium/Bauxite) 真实地理产区分布 (几内亚、牙买加、苏里南、昆士兰、普罗旺斯、广西百色、贵州、河南三门峡、乌拉尔等)
  if (
   name.includes('guinea') ||
   name.includes('boke') ||
@@ -517,6 +483,7 @@ export function getProvinceResourceDeposits(
   name.includes('henan') ||
   name.includes('guizhou') ||
   name.includes('guiyang') ||
+  name.includes('shandong') ||
   name.includes('arkansas') ||
   name.includes('saline') ||
   name.includes('trombetas') ||
@@ -528,44 +495,7 @@ export function getProvinceResourceDeposits(
   deposits.aluminium = 35 + (numId % 65);
  }
 
- // 5. 铬 (Chromium) 真实地理产区分布 (南非布什维尔德、土耳其居莱曼、哈萨克斯坦阿克托别/赫罗姆套、津巴布韦、印度苏金达、阿尔巴尼亚等)
- if (
-  name.includes('bushveld') ||
-  name.includes('rustenburg') ||
-  name.includes('transvaal') ||
-  name.includes('lydenburg') ||
-  name.includes('great dyke') ||
-  name.includes('zimbabwe') ||
-  name.includes('guleman') ||
-  name.includes('elazig') ||
-  name.includes('fethiye') ||
-  name.includes('turkey') ||
-  name.includes('aktobe') ||
-  name.includes('kromtau') ||
-  name.includes('khromtau') ||
-  name.includes('sukinda') ||
-  name.includes('jajpur') ||
-  name.includes('odisha') ||
-  name.includes('bulqize') ||
-  name.includes('albania') ||
-  name.includes('kemi') ||
-  name.includes('finland') ||
-  name.includes('zambales') ||
-  name.includes('philippines') ||
-  name.includes('moa') ||
-  name.includes('cuba') ||
-  name.includes('new caledonia') ||
-  name.includes('tiebaghi') ||
-  name.includes('tibet') ||
-  name.includes('luobusa') ||
-  name.includes('sartohay')
- ) {
-  deposits.chromium = Math.max(deposits.chromium || 0, 140 + (numId % 290));
- } else if (numId % 53 === 0) {
-  deposits.chromium = 30 + (numId % 60);
- }
-
- // 6. 橡胶 (Rubber) 真实地理产区分布 (马来亚、印尼苏门答腊/爪哇/婆罗洲、中南半岛/越南/泰国、斯里兰卡、亚马逊雨林、利比里亚等)
+ // 4. 橡胶 (Rubber) 真实地理产区分布 (马来亚、印尼苏门答腊/爪哇/婆罗洲、中南半岛/越南/泰国、斯里兰卡、亚马逊雨林、利比里亚、海南云南等)
  if (
   name.includes('malaya') ||
   name.includes('kuala lumpur') ||
@@ -603,12 +533,90 @@ export function getProvinceResourceDeposits(
   name.includes('monrovia') ||
   name.includes('amazon') ||
   name.includes('manaus') ||
+  name.includes('hainan') ||
+  name.includes('xishuangbanna') ||
   name.includes('acre')
  ) {
   deposits.rubber = Math.max(deposits.rubber || 0, 180 + (numId % 360));
  } else if (numId % 59 === 0 && (name.includes('tropical') || name.includes('south') || numId % 2 === 0)) {
-  // 零星热带胶园
   deposits.rubber = 35 + (numId % 70);
+ }
+
+ // 5. 钨 (Tungsten) 真实地理产区分布 (中国江西赣州/湖南大余/广东、葡萄牙帕纳什凯拉、玻利维亚波托西、缅甸土瓦、朝鲜半岛上东、科罗拉多克莱马克斯等)
+ if (
+  name.includes('jiangxi') ||
+  name.includes('ganzhou') ||
+  name.includes('dayu') ||
+  name.includes('hunan') ||
+  name.includes('chenzhou') ||
+  name.includes('guangdong') ||
+  name.includes('shaoguan') ||
+  name.includes('panasqueira') ||
+  name.includes('covilha') ||
+  name.includes('portugal') ||
+  name.includes('bolivia') ||
+  name.includes('potosi') ||
+  name.includes('oruro') ||
+  name.includes('burma') ||
+  name.includes('myanmar') ||
+  name.includes('tavoy') ||
+  name.includes('mawchi') ||
+  name.includes('korea') ||
+  name.includes('sangdong') ||
+  name.includes('gangwon') ||
+  name.includes('climax') ||
+  name.includes('colorado') ||
+  name.includes('california') ||
+  name.includes('nevada') ||
+  name.includes('bishop') ||
+  name.includes('tyrnyauz') ||
+  name.includes('dzhida') ||
+  name.includes('king island') ||
+  name.includes('tasmania') ||
+  name.includes('galicia') ||
+  name.includes('salamanca') ||
+  name.includes('nui phao')
+ ) {
+  deposits.tungsten = Math.max(deposits.tungsten || 0, 160 + (numId % 310));
+ } else if (numId % 49 === 0) {
+  deposits.tungsten = 30 + (numId % 65);
+ }
+
+ // 6. 铬 (Chromium) 真实地理产区分布 (南非布什维尔德、土耳其居莱曼、哈萨克斯坦阿克托别/赫罗姆套、津巴布韦、印度苏金达、阿尔巴尼亚等)
+ if (
+  name.includes('bushveld') ||
+  name.includes('rustenburg') ||
+  name.includes('transvaal') ||
+  name.includes('lydenburg') ||
+  name.includes('great dyke') ||
+  name.includes('zimbabwe') ||
+  name.includes('guleman') ||
+  name.includes('elazig') ||
+  name.includes('fethiye') ||
+  name.includes('turkey') ||
+  name.includes('aktobe') ||
+  name.includes('kromtau') ||
+  name.includes('khromtau') ||
+  name.includes('sukinda') ||
+  name.includes('jajpur') ||
+  name.includes('odisha') ||
+  name.includes('bulqize') ||
+  name.includes('albania') ||
+  name.includes('kemi') ||
+  name.includes('finland') ||
+  name.includes('zambales') ||
+  name.includes('philippines') ||
+  name.includes('moa') ||
+  name.includes('cuba') ||
+  name.includes('new caledonia') ||
+  name.includes('tiebaghi') ||
+  name.includes('tibet') ||
+  name.includes('luobusa') ||
+  name.includes('sartohay')
+ ) {
+  deposits.chromium = Math.max(deposits.chromium || 0, 140 + (numId % 290));
+ } else if (numId % 53 === 0) {
+  deposits.chromium = 30 + (numId % 60);
  }
 
  return deposits;
@@ -622,50 +630,107 @@ export function calculateNationResourceOverview(
 ): Record<StrategicResourceType, NationResourceStats> {
  const provinces = nation?.provinces || [];
  const civFactories = getTotalCivilianFactories(nation);
- const milFactories = nation?.militaryIndustry?.productionLines?.length || 6;
+ const milFactories = nation?.militaryFactories || (nation?.militaryIndustry?.productionLines?.length || 6);
  const armyDivisions = nation?.army?.divisions?.length || 4;
 
  const result: Record<StrategicResourceType, NationResourceStats> = {
   oil: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 2400, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
-  coal: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 4500, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
-  iron: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 3600, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
+  steel: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 3600, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
   aluminium: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 1800, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
-  chromium: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 950, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
   rubber: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 1200, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
+  tungsten: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 1100, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
+  chromium: { dailyProduction: 0, dailyConsumption: 0, netDaily: 0, stockpile: 950, importedDaily: 0, exportedDaily: 0, depositProvincesCount: 0 },
  };
 
- // 1. Sum up province deposits
+ // 1. Sum up province deposits for all currently owned/controlled provinces
  provinces.forEach((p) => {
   const deposits = getProvinceResourceDeposits(p.id, p.name, (p as any).properties);
   (Object.keys(deposits) as StrategicResourceType[]).forEach((resKey) => {
    const amt = deposits[resKey] || 0;
-   if (amt > 0) {
+   if (amt > 0 && result[resKey]) {
     result[resKey].dailyProduction += amt;
     result[resKey].depositProvincesCount += 1;
    }
   });
  });
 
- // Default baseline production if country is established
- if (result.oil.dailyProduction === 0 && provinces.length > 0) result.oil.dailyProduction = 45;
- if (result.coal.dailyProduction === 0 && provinces.length > 0) result.coal.dailyProduction = 90;
- if (result.iron.dailyProduction === 0 && provinces.length > 0) result.iron.dailyProduction = 80;
- if (result.aluminium.dailyProduction === 0 && provinces.length > 0) result.aluminium.dailyProduction = 35;
- if (result.chromium.dailyProduction === 0 && provinces.length > 0) result.chromium.dailyProduction = 20;
- if (result.rubber.dailyProduction === 0 && provinces.length > 0) result.rubber.dailyProduction = 25;
+ // Default baseline production if country is established but lacks raw geographic matches
+ if (result.oil.dailyProduction === 0 && provinces.length > 0) result.oil.dailyProduction = 42;
+ if (result.steel.dailyProduction === 0 && provinces.length > 0) result.steel.dailyProduction = 86;
+ if (result.aluminium.dailyProduction === 0 && provinces.length > 0) result.aluminium.dailyProduction = 31;
+ if (result.rubber.dailyProduction === 0 && provinces.length > 0) result.rubber.dailyProduction = 12;
+ if (result.tungsten.dailyProduction === 0 && provinces.length > 0) result.tungsten.dailyProduction = 8;
+ if (result.chromium.dailyProduction === 0 && provinces.length > 0) result.chromium.dailyProduction = 15;
 
- // 2. Consumption calculations based on factories & army
- result.oil.dailyConsumption = Math.round(milFactories * 4.5 + armyDivisions * 4.8);
- result.coal.dailyConsumption = Math.round(civFactories * 4.0 + milFactories * 3.5);
- result.iron.dailyConsumption = Math.round(milFactories * 6.5 + civFactories * 2.8);
- result.aluminium.dailyConsumption = Math.round(milFactories * 3.8);
- result.chromium.dailyConsumption = Math.round(milFactories * 2.2);
- result.rubber.dailyConsumption = Math.round(milFactories * 2.5 + armyDivisions * 1.5);
+ // 2. Parse Trade Agreements (Imports & Exports)
+ const activeDeals = nation?.strategicResourceTradeDeals || [];
+ activeDeals.forEach((deal) => {
+  if (deal.status === 'active' && deal.resourceType && result[deal.resourceType as StrategicResourceType]) {
+   if (deal.importerNationId === nation?.id) {
+    result[deal.resourceType as StrategicResourceType].importedDaily += deal.amount;
+   } else if (deal.exporterNationId === nation?.id) {
+    result[deal.resourceType as StrategicResourceType].exportedDaily += deal.amount;
+   }
+  }
+ });
 
- // 3. Trade and Net Calculation
+ // 3. Realistic Military & Civilian Consumption calculations
+ // Parse active military production lines
+ const prodLines = nation?.militaryIndustry?.productionLines || [];
+ let lineOil = 0;
+ let lineSteel = 0;
+ let lineAlum = 0;
+ let lineRub = 0;
+ let lineTung = 0;
+ let lineChrom = 0;
+
+ prodLines.forEach((line) => {
+  const facs = line.assignedFactories || 1;
+  const eqId = line.equipmentId || '';
+  const cat = line.category || '';
+
+  if (cat === 'aviation' || eqId.includes('aircraft') || eqId.includes('fighter') || eqId.includes('bomber')) {
+   lineAlum += facs * 4;
+   lineRub += facs * 2;
+   lineOil += facs * 3;
+  } else if (cat === 'armor' || eqId.includes('tank')) {
+   lineSteel += facs * 6;
+   lineTung += facs * 3;
+   lineChrom += facs * 2;
+   lineOil += facs * 4;
+  } else if (cat === 'artillery' || eqId.includes('artillery')) {
+   lineSteel += facs * 4;
+   lineTung += facs * 3;
+  } else if (cat === 'motorized' || eqId.includes('truck')) {
+   lineSteel += facs * 3;
+   lineRub += facs * 3;
+  } else if (cat === 'mechanized' || eqId.includes('mechanized')) {
+   lineSteel += facs * 4;
+   lineRub += facs * 2;
+   lineTung += facs * 2;
+  } else if (cat === 'support' || eqId.includes('support')) {
+   lineSteel += facs * 2;
+   lineAlum += facs * 2;
+  } else {
+   // Infantry rifles & basic equipment
+   lineSteel += facs * 3;
+  }
+ });
+
+ result.oil.dailyConsumption = Math.round(lineOil + armyDivisions * 4.2 + milFactories * 1.5);
+ result.steel.dailyConsumption = Math.round(lineSteel + civFactories * 1.8 + milFactories * 2.0);
+ result.aluminium.dailyConsumption = Math.round(lineAlum + civFactories * 0.5);
+ result.rubber.dailyConsumption = Math.round(lineRub + armyDivisions * 1.2);
+ result.tungsten.dailyConsumption = Math.round(lineTung);
+ result.chromium.dailyConsumption = Math.round(lineChrom);
+
+ // 4. Stockpile and Net Calculation
  (Object.keys(result) as StrategicResourceType[]).forEach((key) => {
   const item = result[key];
   item.netDaily = item.dailyProduction + item.importedDaily - item.dailyConsumption - item.exportedDaily;
+  if (nation?.strategicResourceStockpiles && typeof nation.strategicResourceStockpiles[key] === 'number') {
+   item.stockpile = nation.strategicResourceStockpiles[key];
+  }
  });
 
  return result;
@@ -673,6 +738,13 @@ export function calculateNationResourceOverview(
 
 /**
  * Computes dynamic national demographics with 1Y, 5Y, 10Y, 25Y, 50Y curves.
+ * 规则：缓慢、稳定、单向增长机制。
+ * - 人口随时间自然缓慢增加（预设日增率 +0.01%）
+ * - 人口不会自然减少，不允许负增长
+ * - 战争不会直接导致人口减少，不影响自然增长速度
+ * - 移民不会直接减少或增加全国总人口
+ * - 政治制度、经济、稳定度、战争、外交均不能修改人口增长逻辑
+ * - 人口系统与任何其他外部系统保持严格独立
  */
 export function calculateNationDemographics(
  nation: Nation | null | undefined
@@ -687,24 +759,18 @@ export function calculateNationDemographics(
   }
  }
 
- const stability = nation?.stabilityIndex ?? 82;
- const isAtWar = (nation?.activeWars?.length || 0) > 0;
- const warCasualties = isAtWar ? Math.round(basePop * 0.0022) : Math.round(basePop * 0.0001);
+ // 恒定基准增长率：每日 +0.01% (缓慢、稳定、单向增长)
+ const dailyGrowthRate = BASE_DAILY_POPULATION_GROWTH_RATE;
+ const dailyGrowthRatePercent = 0.01;
+ const annualCompoundedFactor = Math.pow(1 + dailyGrowthRate, 365) - 1;
+ const annualGrowthRatePercent = Number((annualCompoundedFactor * 100).toFixed(2));
 
- // Growth rate driven by stability & war
- const baseGrowthPercent = 1.42;
- const stabilityBonus = ((stability - 50) / 50) * 0.45;
- const warPenalty = isAtWar ? -0.55 : 0;
- const annualGrowthRatePercent = Number(
-  Math.max(0.1, baseGrowthPercent + stabilityBonus + warPenalty).toFixed(2)
- );
-
- const annualBirths = Math.round(basePop * 0.024);
- const annualNaturalDeaths = Math.round(basePop * 0.011);
- const annualRefugeesAndMigration = Math.round(basePop * (isAtWar ? -0.003 : 0.0025));
- const annualNetGrowth = Math.round(
-  annualBirths - annualNaturalDeaths - warCasualties + annualRefugeesAndMigration
- );
+ const dailyNetGrowth = Math.round(basePop * dailyGrowthRate);
+ const annualNetGrowth = Math.round(basePop * annualCompoundedFactor);
+ const annualBirths = annualNetGrowth;
+ const annualNaturalDeaths = 0; // 规则：严禁负向扣减
+ const warCasualties = 0; // 规则：战争不削减全国总人口
+ const annualRefugeesAndMigration = 0; // 规则：移民不增减全国总人口
 
  const spans = [
   { spanLabel: '1年展望', years: 1 },
@@ -715,7 +781,7 @@ export function calculateNationDemographics(
  ];
 
  const projections = spans.map((s) => {
-  const projected = Math.round(basePop * Math.pow(1 + annualGrowthRatePercent / 100, s.years));
+  const projected = Math.round(basePop * Math.pow(1 + dailyGrowthRate, 365 * s.years));
   return {
    spanLabel: s.spanLabel,
    years: s.years,
@@ -725,22 +791,25 @@ export function calculateNationDemographics(
  });
 
  const historyCurve = [
-  { year: 1932, population: Math.round(basePop * 0.94), growthRate: 1.25, casualties: 1200 },
-  { year: 1933, population: Math.round(basePop * 0.955), growthRate: 1.32, casualties: 2400 },
-  { year: 1934, population: Math.round(basePop * 0.97), growthRate: 1.38, casualties: 3100 },
-  { year: 1935, population: Math.round(basePop * 0.985), growthRate: 1.45, casualties: 4200 },
-  { year: 1936, population: basePop, growthRate: annualGrowthRatePercent, casualties: warCasualties },
+  { year: 1932, population: Math.round(basePop * Math.pow(1 + dailyGrowthRate, -365 * 4)), growthRate: annualGrowthRatePercent, casualties: 0 },
+  { year: 1933, population: Math.round(basePop * Math.pow(1 + dailyGrowthRate, -365 * 3)), growthRate: annualGrowthRatePercent, casualties: 0 },
+  { year: 1934, population: Math.round(basePop * Math.pow(1 + dailyGrowthRate, -365 * 2)), growthRate: annualGrowthRatePercent, casualties: 0 },
+  { year: 1935, population: Math.round(basePop * Math.pow(1 + dailyGrowthRate, -365 * 1)), growthRate: annualGrowthRatePercent, casualties: 0 },
+  { year: 1936, population: basePop, growthRate: annualGrowthRatePercent, casualties: 0 },
  ];
 
  return {
   currentPopulation: basePop,
+  dailyGrowthRatePercent,
   annualGrowthRatePercent,
+  dailyNetGrowth,
   annualBirths,
   annualNaturalDeaths,
   annualNetGrowth,
   annualWarCasualties: warCasualties,
   annualRefugeesAndMigration,
-  demographicHealthIndex: Math.min(100, Math.max(30, Math.round(stability * 0.8 + annualGrowthRatePercent * 15))),
+  demographicHealthIndex: 100,
+  systemIndependenceStatus: 'ACTIVE_ISOLATED',
   projections,
   historyCurve,
  };
@@ -924,7 +993,7 @@ export function calculateNationPolitics(
  if (rulingPartyId === 'communist') {
   modifiers = [
    { name: '五年重工计划', type: 'buff', value: '+15% 军工厂建造与产出', description: '国家统一调配生产要素，工业产能集中攻坚。' },
-   { name: '全民公费医疗', type: 'buff', value: '+12% 人口净增长率', description: '基层社群公费医疗托底，消除平民因病致贫。' },
+   { name: '全民公费医疗', type: 'buff', value: '+12% 基础社会保障', description: '基层社群公费医疗托底，消除平民因病致贫。' },
    { name: '外汇与边境管制', type: 'debuff', value: '-8% 私人关税贸易盈余', description: '跨境资本流动受到国家外贸部严格管控。' },
   ];
  } else if (rulingPartyId === 'fascist') {

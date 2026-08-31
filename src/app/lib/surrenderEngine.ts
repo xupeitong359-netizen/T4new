@@ -700,6 +700,9 @@ export function handleCapitulation(
   name: provName,
   civilianFactories: 1,
   militaryFactories: 1,
+  isCore: false,
+  acquiredMethod: 'treaty_cession',
+  occupationStatus: 'occupied',
  }));
 
  const updatedVictorNation: Nation = {

@@ -526,6 +526,14 @@ nationsRouter.delete('/:id', requireAuth, (req: AuthRequest, res) => {
       return res.status(403).json({ error: '您无权解散其他领主的国家' });
     }
 
+    // Check if the nation is currently in active war
+    const enriched = enrichNation(nation);
+    if (enriched.activeWars && enriched.activeWars.length > 0) {
+      return res.status(400).json({
+        error: `国家【${nation.name}】当前处于战时交火状态（共 ${enriched.activeWars.length} 场正在进行的战争），处于战争状态时无法解散国家！请先达成和平停战协议或宣布投降。`,
+      });
+    }
+
     const nationName = nation.name;
     const success = db.deleteNation(nationId);
 
@@ -534,7 +542,7 @@ nationsRouter.delete('/:id', requireAuth, (req: AuthRequest, res) => {
     }
 
     return res.json({
-      message: `国家【${nationName}】已被成功解散，所有相关条约与战争状态已注销。`,
+      message: `国家【${nationName}】已被成功解散，所有相关条约已注销。`,
     });
   } catch (error: any) {
     console.error('Delete nation error:', error);

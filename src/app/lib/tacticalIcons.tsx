@@ -391,7 +391,7 @@ export const StrategicManpowerIcon: React.FC<TacticalIconProps> = ({ size = 20, 
  </svg>
 );
 
-// 领土与省份边界 (Territory Province Border / Map Zone)
+// 领土与沙盘疆域 (Territory Province Border / Morphicon Strategic Map)
 export const StrategicTerritoryIcon: React.FC<TacticalIconProps> = ({ size = 20, className = '', ...props }) => (
  <svg
   width={size}
@@ -402,15 +402,73 @@ export const StrategicTerritoryIcon: React.FC<TacticalIconProps> = ({ size = 20,
   className={`inline-block shrink-0 ${className}`}
   {...props}
  >
-  {/* Irregular Strategic Region Polygon with Frontier Points */}
-  <path d="M3 7L9 3L17 5L21 11L18 19L11 21L4 16L3 7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="currentColor" fillOpacity="0.12" />
-  <circle cx="9" cy="3" r="1.5" fill="currentColor" />
-  <circle cx="17" cy="5" r="1.5" fill="currentColor" />
-  <circle cx="21" cy="11" r="1.5" fill="currentColor" />
-  <circle cx="18" cy="19" r="1.5" fill="currentColor" />
-  <circle cx="11" cy="21" r="1.5" fill="currentColor" />
-  <circle cx="4" cy="16" r="1.5" fill="currentColor" />
-  <circle cx="3" cy="7" r="1.5" fill="currentColor" />
+  {/* Morphicon Modern Sand Table Map */}
+  <path
+   d="M3 6.5L8.5 4L15.5 7L21 4.5V17.5L15.5 20L8.5 17L3 19.5V6.5Z"
+   stroke="currentColor"
+   strokeWidth="1.75"
+   strokeLinecap="round"
+   strokeLinejoin="round"
+   fill="currentColor"
+   fillOpacity="0.08"
+  />
+  <path
+   d="M8.5 4V17"
+   stroke="currentColor"
+   strokeWidth="1.75"
+   strokeLinecap="round"
+   strokeLinejoin="round"
+  />
+  <path
+   d="M15.5 7V20"
+   stroke="currentColor"
+   strokeWidth="1.75"
+   strokeLinecap="round"
+   strokeLinejoin="round"
+  />
+  <circle cx="12" cy="11.5" r="1.5" fill="currentColor" />
+ </svg>
+);
+
+// 国牒文书与主权档案 (Nation Dossier / Morphicon Passport)
+export const StrategicDossierIcon: React.FC<TacticalIconProps> = ({ size = 20, className = '', ...props }) => (
+ <svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  className={`inline-block shrink-0 ${className}`}
+  {...props}
+ >
+  <rect
+   x="4.5"
+   y="3"
+   width="15"
+   height="18"
+   rx="2.5"
+   stroke="currentColor"
+   strokeWidth="1.75"
+   strokeLinecap="round"
+   strokeLinejoin="round"
+   fill="currentColor"
+   fillOpacity="0.08"
+  />
+  <circle
+   cx="12"
+   cy="9.5"
+   r="2.75"
+   stroke="currentColor"
+   strokeWidth="1.5"
+   fill="currentColor"
+   fillOpacity="0.15"
+  />
+  <path
+   d="M8 16.5H16"
+   stroke="currentColor"
+   strokeWidth="1.75"
+   strokeLinecap="round"
+  />
  </svg>
 );
 

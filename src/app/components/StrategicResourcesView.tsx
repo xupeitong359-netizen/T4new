@@ -34,16 +34,16 @@ export function renderResourceLucideIcon(resKey: StrategicResourceType, classNam
  switch (resKey) {
   case 'oil':
    return <Fuel className={className} />;
-  case 'coal':
-   return <Flame className={className} />;
-  case 'iron':
+  case 'steel':
    return <Hammer className={className} />;
   case 'aluminium':
    return <Boxes className={className} />;
-  case 'chromium':
-   return <Gem className={className} />;
   case 'rubber':
    return <Disc className={className} />;
+  case 'tungsten':
+   return <Layers className={className} />;
+  case 'chromium':
+   return <Gem className={className} />;
   default:
    return <Layers className={className} />;
  }
