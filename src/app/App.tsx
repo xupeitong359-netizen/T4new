@@ -85,6 +85,7 @@ import { InternationalEmbargoView } from './components/InternationalEmbargoView'
 import { WarCommandCenter } from './components/WarCommandCenter';
 import { NationalFocusTreePage } from './components/NationalFocusTreePage';
 import { BrandSplashScreen } from './components/BrandSplashScreen';
+import { StrategicMarketView } from './components/StrategicMarketView';
 
 export type TabView =
  | 'lobby'
@@ -99,6 +100,7 @@ export type TabView =
  | 'demographics'
  | 'politics'
  | 'resources'
+ | 'strategic_market'
  | 'embargo'
  | 'governance';
 
@@ -245,6 +247,29 @@ function MainApp() {
    setNations((previous) => previous.map((nation) => (nation.id === result.nation.id ? result.nation : nation)));
   }).catch((error) => console.warn('Nation persistence failed:', error));
  }, [setMyNation]);
+
+ const handleUpdateNationStockpile = useCallback((updatedStockpiles: Record<string, number>, updatedTreasury?: number) => {
+  if (!myNation) return;
+  const currentIndustry = myNation.militaryIndustry || {
+   productionLines: [],
+   customDesigns: [],
+   stockpiles: {},
+  };
+  const updatedIndustry = {
+   ...currentIndustry,
+   stockpiles: updatedStockpiles,
+  };
+  const updatedNation: Nation = {
+   ...myNation,
+   militaryIndustry: updatedIndustry,
+   treasury: updatedTreasury !== undefined ? updatedTreasury : myNation.treasury,
+   economy: myNation.economy ? {
+     ...myNation.economy,
+     treasury: updatedTreasury !== undefined ? updatedTreasury : (myNation.economy.treasury || 25000),
+   } : undefined,
+  };
+  persistNationUpdate(updatedNation);
+ }, [myNation, persistNationUpdate]);
 
  const userId = user?.id;
  const userRef = useRef(user);
@@ -1204,6 +1229,7 @@ function MainApp() {
        onOpenDispute={handleOpenDispute}
        onOpenArmyCommand={() => setActiveTab('army')}
        onOpenResources={() => setActiveTab('resources')}
+       onOpenStrategicMarket={() => setActiveTab('strategic_market')}
       />
      </motion.div>
     )}
@@ -1244,6 +1270,20 @@ function MainApp() {
      <div className="flex-1 animate-fadeIn px-3 sm:px-5 lg:px-7 py-4 sm:py-6">
       <StrategicResourcesView
        nation={myNation}
+       onNavigateToMap={() => setActiveTab('world_map')}
+      />
+     </div>
+    )}
+
+    {/* VIEW: STRATEGIC ARMS MARKET (战略军火与重装备交易公署) */}
+    {activeTab === 'strategic_market' && (
+     <div className="flex-1 animate-fadeIn px-2 sm:px-4 lg:px-6 py-2 sm:py-4">
+      <StrategicMarketView
+       myNation={myNation}
+       allNations={nations}
+       onUpdateNationStockpile={handleUpdateNationStockpile}
+       onShowToast={showToast}
+       onOpenNationDetail={handleViewNation}
        onNavigateToMap={() => setActiveTab('world_map')}
       />
      </div>

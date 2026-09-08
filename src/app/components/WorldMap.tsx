@@ -33,6 +33,7 @@ import {
  Moon,
  Contrast,
  Boxes,
+ ShoppingBag,
 } from 'lucide-react';
 import * as d3Geo from 'd3-geo';
 import { Nation } from '../types';
@@ -106,6 +107,7 @@ interface WorldMapProps {
  onOpenDispute?: (targetNation: Nation, provinceName: string) => void;
  onOpenArmyCommand?: () => void;
  onOpenResources?: () => void;
+ onOpenStrategicMarket?: () => void;
 }
 
 // Built-in simplified world landmasses GeoJSON coordinates for fallback
@@ -752,6 +754,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
  onOpenDispute,
  onOpenArmyCommand,
  onOpenResources,
+ onOpenStrategicMarket,
 }) => {
  const [geoData, setGeoData] = useState<any>(null);
  const [mapTheme, setMapTheme] = useState<MapVisualTheme>(() => getSavedMapTheme());
@@ -851,6 +854,20 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   if (!myNation) return nations.length || 5;
   return typeof myNation.stability === 'number' ? myNation.stability : (nations.length || 5);
  }, [myNation, nations]);
+
+ const formattedMarketTreasury = useMemo(() => {
+  if (!myNation) return '¥25K';
+  const currencyRate = Number(myNation?.currencyRate) || 1;
+  const rawTreasury = Number(myNation?.treasury) || Number((myNation as any)?.economy?.treasury) || 25000;
+  const myTreasuryInLingyu = Math.round(rawTreasury * currencyRate);
+  if (myTreasuryInLingyu >= 1000000) {
+   return `¥${(myTreasuryInLingyu / 1000000).toFixed(1)}M`;
+  }
+  if (myTreasuryInLingyu >= 1000) {
+   return `¥${(myTreasuryInLingyu / 1000).toFixed(0)}K`;
+  }
+  return `¥${myTreasuryInLingyu}`;
+ }, [myNation]);
 
  // Navigate between provinces (prev / next in precalculatedFeatures)
  const handleNavigateProvince = (direction: 'prev' | 'next') => {
@@ -1894,29 +1911,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     )}
    </AnimatePresence>
 
-   {/* TOP COMMAND HUD: 日期 → 核心行动 → 国家资源 */}
+   {/* TOP COMMAND HUD: 浅色前卫极简战略 HUD 统一状态栏 (日期 ｜ 陆军 ｜ 建设 ｜ 战略资源 ｜ 军火市场) */}
    <div className="absolute top-2 left-2 right-2 sm:top-2.5 sm:left-3.5 sm:right-3.5 z-30 flex items-center justify-between pointer-events-none gap-2">
-    {/* Left: Campaign Clock + Strategic Action Modules (嵌入式大战略 HUD) */}
-    <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5">
-     {/* Campaign Date & Threat Status Instrument Module */}
-     <div className="px-2.5 py-1 rounded bg-slate-950/85 text-slate-100 border border-white/10 backdrop-blur-md shadow flex flex-col justify-center shrink-0 select-none">
+    {/* Left: 浅色现代信息带容器 - 极简超细边框、微圆角、更紧凑舒适的横向内边距 */}
+    <div className="pointer-events-auto flex items-center bg-white/95 text-slate-800 border border-slate-200/80 rounded-[4px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-md overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none divide-x divide-slate-200/70 h-8.5">
+     {/* Campaign Date Module */}
+     <div className="px-2.5 sm:px-3 h-full flex items-center shrink-0 select-none whitespace-nowrap">
       <div className="flex items-center gap-1.5 leading-none">
-       <Clock3 className="h-3 w-3 shrink-0 text-amber-400/90" />
-       <time className="font-mono text-xs font-black tracking-tight tabular-nums text-white leading-none">
+       <Clock3 className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+       <time className="font-mono text-xs sm:text-[13px] font-black tracking-tight tabular-nums text-slate-900 leading-none whitespace-nowrap">
         {worldClockStart ? formatCampaignTime(worldClockStart, campaignNow) : '1936.01.01'}
        </time>
-      </div>
-      <div className="flex items-center gap-1 mt-0.5 leading-none">
-       <span
-        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-         myNation?.activeWars && myNation.activeWars.length > 0
-          ? 'bg-rose-500 animate-pulse'
-          : 'bg-emerald-400'
-        }`}
-       />
-       <span className="text-[9px] text-slate-400 font-sans tracking-wide leading-none select-none">
-        {myNation?.activeWars && myNation.activeWars.length > 0 ? '战时紧急' : '和平时期'}
-       </span>
       </div>
      </div>
 
@@ -1929,15 +1934,15 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         e.stopPropagation();
         onOpenArmyCommand();
        }}
-       className="px-2.5 py-1 rounded bg-slate-950/80 hover:bg-rose-950/40 text-rose-100 border border-rose-500/25 backdrop-blur-md shadow flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group active:scale-95"
+       className="px-2 sm:px-2.5 h-full hover:bg-slate-50/80 text-slate-700 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group select-none whitespace-nowrap"
        title="进入陆军最高指挥部"
       >
-       <Swords className="w-3.5 h-3.5 text-rose-400 shrink-0 group-hover:scale-110 transition-transform" />
+       <Swords className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0 transition-colors" />
        <div className="flex flex-col items-start leading-none">
-        <span className="text-[9px] text-rose-300/80 font-semibold tracking-wider leading-none">
+        <span className="text-[9px] text-slate-400 font-medium tracking-wider leading-none whitespace-nowrap">
          陆军
         </span>
-        <span className="font-mono text-xs font-black text-rose-100 tabular-nums mt-0.5 leading-none">
+        <span className="font-mono text-xs font-bold text-slate-800 tabular-nums mt-0.5 leading-none whitespace-nowrap">
          {formattedArmyManpower}
         </span>
        </div>
@@ -1953,15 +1958,15 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         e.stopPropagation();
         onOpenConstruction();
        }}
-       className="px-2.5 py-1 rounded bg-slate-950/80 hover:bg-amber-950/40 text-amber-100 border border-amber-500/25 backdrop-blur-md shadow flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group active:scale-95"
+       className="px-2 sm:px-2.5 h-full hover:bg-slate-50/80 text-slate-700 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group select-none whitespace-nowrap"
        title="进入国家战略筑造中心"
       >
-       <Hammer className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:rotate-12 transition-transform" />
+       <Hammer className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0 transition-colors" />
        <div className="flex flex-col items-start leading-none">
-        <span className="text-[9px] text-amber-300/80 font-semibold tracking-wider leading-none">
+        <span className="text-[9px] text-slate-400 font-medium tracking-wider leading-none whitespace-nowrap">
          建设
         </span>
-        <span className="font-mono text-xs font-black text-amber-100 tabular-nums mt-0.5 leading-none">
+        <span className="font-mono text-xs font-bold text-slate-800 tabular-nums mt-0.5 leading-none whitespace-nowrap">
          {totalCivFactories}
         </span>
        </div>
@@ -1977,23 +1982,47 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         e.stopPropagation();
         onOpenResources();
        }}
-       className="px-2.5 py-1 rounded bg-slate-950/80 hover:bg-sky-950/40 text-sky-100 border border-sky-500/25 backdrop-blur-md shadow flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group active:scale-95"
+       className="px-2 sm:px-2.5 h-full hover:bg-slate-50/80 text-slate-700 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group select-none whitespace-nowrap"
        title="进入国家战略资源储备中枢"
       >
-       <Boxes className="w-3.5 h-3.5 text-sky-400 shrink-0 group-hover:scale-110 transition-transform" />
+       <Boxes className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0 transition-colors" />
        <div className="flex flex-col items-start leading-none">
-        <span className="text-[9px] text-sky-300/80 font-semibold tracking-wider leading-none">
+        <span className="text-[9px] text-slate-400 font-medium tracking-wider leading-none whitespace-nowrap">
          战略资源
         </span>
-        <span className="font-mono text-xs font-black text-sky-100 tabular-nums mt-0.5 leading-none">
+        <span className="font-mono text-xs font-bold text-slate-800 tabular-nums mt-0.5 leading-none whitespace-nowrap">
          {Object.values(calculateNationResourceOverview(myNation)).reduce((s, r) => s + r.stockpile, 0).toLocaleString()}
+        </span>
+       </div>
+      </button>
+     )}
+
+     {/* HUD System Module 4: Strategic Arms Market (军火市场) */}
+     {onOpenStrategicMarket && (
+      <button
+       id="map-floating-market-btn"
+       type="button"
+       onClick={(e) => {
+        e.stopPropagation();
+        onOpenStrategicMarket();
+       }}
+       className="px-2 sm:px-2.5 h-full hover:bg-slate-50/80 text-slate-700 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer group select-none whitespace-nowrap"
+       title="进入战略军火与重装备交易公署"
+      >
+       <ShoppingBag className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 shrink-0 transition-colors" />
+       <div className="flex flex-col items-start leading-none">
+        <span className="text-[9px] text-slate-400 font-medium tracking-wider leading-none whitespace-nowrap">
+         军火市场
+        </span>
+        <span className="font-mono text-xs font-bold text-slate-800 tabular-nums mt-0.5 leading-none whitespace-nowrap">
+         {formattedMarketTreasury}
         </span>
        </div>
       </button>
      )}
     </div>
 
-    {/* Right: National Core Resource / Faction Power ( 5) */}
+    {/* Right: National Core Resource / Faction Power */}
     <div className="pointer-events-auto flex items-center gap-1 shrink-0">
      <button
       type="button"
@@ -2001,15 +2030,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        e.stopPropagation();
        setShowNationsDrawer(!showNationsDrawer);
       }}
-      className={`px-2.5 py-1.5 rounded border backdrop-blur-md shadow flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer active:scale-95 ${
+      className={`h-8.5 px-2.5 rounded-[4px] border backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer active:scale-95 ${
        showNationsDrawer
-        ? 'bg-purple-950/90 border-purple-400 text-purple-100 ring-1 ring-purple-400/50'
-        : 'bg-slate-950/80 hover:bg-purple-950/50 border-purple-500/25 text-purple-200 hover:border-purple-400/50'
+        ? 'bg-orange-50/80 border-orange-300 text-orange-700'
+        : 'bg-white/95 hover:bg-slate-50 border-slate-200/80 text-slate-700 hover:text-slate-900'
       }`}
       title="国家战略威望与世界势力清册"
      >
-      <Crown className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-      <span className="font-mono text-xs font-black text-purple-100 tabular-nums leading-none">
+      <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+      <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">影响</span>
+      <span className="font-mono text-xs font-bold text-slate-800 tabular-nums leading-none">
        {nationalPrestigeOrCount}
       </span>
      </button>
@@ -2017,8 +2047,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
    </div>
 
     {/* SECONDARY ROW: Map Modes Tactical Selector (政务 / 工业 / 资源 / 人口 / 地貌 / 战线) */}
-    <div className="absolute top-[44px] sm:top-[48px] left-2 sm:left-3.5 z-30 flex flex-col gap-1 max-w-[calc(100vw-4rem)] pointer-events-none">
-     <div className="pointer-events-auto flex items-center p-0.5 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow-md transition-all flex-wrap sm:flex-nowrap gap-0.5">
+    <div className="absolute top-[42px] sm:top-[44px] left-2 sm:left-3.5 z-30 flex flex-col gap-1 max-w-[calc(100vw-4rem)] pointer-events-none">
+     <div className="pointer-events-auto flex items-center px-1 py-0.5 bg-white/95 text-slate-700 backdrop-blur-md border border-slate-200/80 rounded-[4px] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all flex-wrap sm:flex-nowrap gap-0.5">
       {/* Tactical Map Modes List */}
       <div className="flex items-center">
        {[
@@ -2033,10 +2063,10 @@ export const WorldMap: React.FC<WorldMapProps> = ({
          key={mode.id}
          type="button"
          onClick={() => setMapMode(mode.id as MapModeType)}
-         className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer shrink-0 relative ${
+         className={`px-2.5 py-1 text-[11px] transition-colors cursor-pointer shrink-0 relative ${
           mapMode === mode.id
-           ? 'text-white after:absolute after:bottom-0 after:left-1.5 after:right-1.5 after:h-[2px] after:bg-amber-400 after:rounded-full after:shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-           : 'text-slate-400 hover:text-slate-200'
+           ? 'text-orange-600 font-bold after:absolute after:bottom-0 after:left-2 after:right-2 after:h-[1.5px] after:bg-orange-500'
+           : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/80'
          }`}
         >
          {mode.label}
@@ -2053,22 +2083,22 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-        className="flex items-center gap-1.5 pl-2 border-l border-white/15 shrink-0"
+        className="flex items-center gap-1.5 pl-2 border-l border-slate-200 shrink-0"
        >
         <div className="flex items-center gap-1 shrink-0">
          <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
          </span>
-         <span className="text-xs font-bold text-emerald-400 whitespace-nowrap">
+         <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">
           和平扩张
          </span>
         </div>
 
         {/* Limit/Adjacency Info Badge */}
-        <div className="hidden lg:flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-[10px] text-emerald-300 font-medium whitespace-nowrap">
+        <div className="hidden lg:flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700 font-medium whitespace-nowrap">
          <span className="font-mono font-bold">1次/日</span>
-         <span className="text-emerald-500">·</span>
+         <span className="text-emerald-400">·</span>
          <span>与本土接壤</span>
         </div>
 
@@ -2081,8 +2111,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
          }}
          className={`p-1 rounded transition cursor-pointer flex items-center justify-center shrink-0 ${
           showExpansionInfo
-           ? 'bg-emerald-500/30 text-emerald-300 ring-1 ring-emerald-400/60'
-           : 'text-slate-400 hover:text-white hover:bg-white/10'
+           ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300'
+           : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
          }`}
          title={showExpansionInfo ? '收起说明' : '点击查看详细操作说明'}
         >
@@ -2098,13 +2128,13 @@ export const WorldMap: React.FC<WorldMapProps> = ({
           setIsPeacefulExpansion(false);
           setShowExpansionInfo(false);
          }}
-         className="flex items-center gap-1 px-2 py-0.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded text-[10px] font-bold transition cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+         className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-[10px] font-bold transition cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
          title="退出和平扩张模式"
         >
          {isExpanding ? (
-          <Compass className="w-3 h-3 animate-spin text-emerald-400" />
+          <Compass className="w-3 h-3 animate-spin text-emerald-600" />
          ) : (
-          <X className="w-3 h-3 text-rose-400" />
+          <X className="w-3 h-3 text-rose-500" />
          )}
          <span>{isExpanding ? '签署中...' : '退出'}</span>
         </button>
@@ -2121,24 +2151,24 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        animate={{ opacity: 1, y: 0, scale: 1 }}
        exit={{ opacity: 0, y: -6, scale: 0.96 }}
        transition={{ type: 'spring', stiffness: 480, damping: 28 }}
-       className="pointer-events-auto w-full max-w-sm px-3 py-2 bg-slate-950/95 text-slate-200 border border-emerald-500/40 rounded-xl shadow-2xl backdrop-blur-xl text-left text-xs leading-relaxed"
+       className="pointer-events-auto w-full max-w-sm px-3 py-2 bg-white/95 text-slate-700 border border-emerald-200 rounded-lg shadow-lg backdrop-blur-xl text-left text-xs leading-relaxed"
       >
-       <div className="flex items-center justify-between font-bold text-emerald-400 mb-1 text-[11px]">
+       <div className="flex items-center justify-between font-bold text-emerald-700 mb-1 text-[11px]">
         <span>和平领土归并指引</span>
         <button
          type="button"
          onClick={() => setShowExpansionInfo(false)}
-         className="text-slate-400 hover:text-white cursor-pointer"
+         className="text-slate-400 hover:text-slate-600 cursor-pointer"
         >
          <X className="w-3.5 h-3.5" />
         </button>
        </div>
-       <p className="text-slate-300 text-[11px]">
-        点击地图上与本国领土接壤的<span className="text-emerald-400 font-bold">绿色高亮中立省份</span>即可完成和平归并。
+       <p className="text-slate-600 text-[11px]">
+        点击地图上与本国领土接壤的<span className="text-emerald-600 font-bold">绿色高亮中立省份</span>即可完成和平归并。
        </p>
-       <div className="mt-1.5 pt-1.5 border-t border-white/10 text-[10px] text-slate-400 flex items-center justify-between">
+       <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] text-slate-500 flex items-center justify-between">
         <span>每日限 1 次 · 00:00 刷新</span>
-        <span className="text-emerald-400 font-mono">1/1 今日剩余</span>
+        <span className="text-emerald-600 font-mono font-bold">1/1 今日剩余</span>
        </div>
       </motion.div>
      )}
@@ -2152,9 +2182,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        animate={{ opacity: 1, y: 0 }}
        exit={{ opacity: 0, y: -4 }}
        transition={{ duration: 0.15 }}
-       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-white/95 text-slate-700 backdrop-blur-md border border-slate-200/90 rounded shadow-xs text-[10px] flex-wrap"
       >
-       <span className="text-slate-400 font-bold mr-0.5">人口阶梯:</span>
+       <span className="text-slate-500 font-bold mr-0.5">人口阶梯:</span>
        {[
         { label: '<40万', color: '#a7f3d0' },
         { label: '40-90万', color: '#34d399' },
@@ -2165,7 +2195,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        ].map((t) => (
         <span key={t.label} className="flex items-center gap-1">
          <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: t.color }} />
-         <span className="text-slate-300 font-medium">{t.label}</span>
+         <span className="text-slate-600 font-medium">{t.label}</span>
         </span>
        ))}
       </motion.div>
@@ -2180,18 +2210,18 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        animate={{ opacity: 1, y: 0 }}
        exit={{ opacity: 0, y: -4 }}
        transition={{ duration: 0.15 }}
-       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-white/95 text-slate-700 backdrop-blur-md border border-slate-200/90 rounded shadow-xs text-[10px] flex-wrap"
       >
-       <span className="text-slate-400 font-bold mr-0.5">总产能:</span>
+       <span className="text-slate-500 font-bold mr-0.5">总产能:</span>
        {[
-        { label: '0 工厂', color: '#64748b' },
-        { label: '1-2 工厂', color: '#d97706' },
-        { label: '3-5 工厂', color: '#2563eb' },
-        { label: '6+ 工厂', color: '#15803d' },
+        { label: '0 工厂', color: '#94a3b8' },
+        { label: '1-2 工厂', color: '#f59e0b' },
+        { label: '3-5 工厂', color: '#3b82f6' },
+        { label: '6+ 工厂', color: '#16a34a' },
        ].map((t) => (
         <span key={t.label} className="flex items-center gap-1">
          <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: t.color }} />
-         <span className="text-slate-300 font-medium">{t.label}</span>
+         <span className="text-slate-600 font-medium">{t.label}</span>
         </span>
        ))}
       </motion.div>
@@ -2206,13 +2236,13 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        animate={{ opacity: 1, y: 0 }}
        exit={{ opacity: 0, y: -4 }}
        transition={{ duration: 0.15 }}
-       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-white/95 text-slate-700 backdrop-blur-md border border-slate-200/90 rounded shadow-xs text-[10px] flex-wrap"
       >
-       <span className="text-slate-400 font-bold mr-0.5">战略资源:</span>
+       <span className="text-slate-500 font-bold mr-0.5">战略资源:</span>
        {Object.values(STRATEGIC_RESOURCES).map((res) => (
         <span key={res.id} className="flex items-center gap-1">
          <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: res.color }} />
-         <span className="text-slate-300 font-medium">{res.name}</span>
+         <span className="text-slate-600 font-medium">{res.name}</span>
         </span>
        ))}
       </motion.div>
@@ -2227,9 +2257,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        animate={{ opacity: 1, y: 0 }}
        exit={{ opacity: 0, y: -4 }}
        transition={{ duration: 0.15 }}
-       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-slate-950/85 text-white backdrop-blur-md border border-white/10 rounded shadow text-[10px] flex-wrap"
+       className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 bg-white/95 text-slate-700 backdrop-blur-md border border-slate-200/90 rounded shadow-xs text-[10px] flex-wrap"
       >
-       <span className="text-slate-400 font-bold mr-0.5">地形:</span>
+       <span className="text-slate-500 font-bold mr-0.5">地形:</span>
        {[
         { label: '平原', color: '#507c49' },
         { label: '山地', color: '#6e6761' },
@@ -2241,7 +2271,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
        ].map((t) => (
         <span key={t.label} className="flex items-center gap-1">
          <span className="w-2 h-2 rounded-[2px]" style={{ backgroundColor: t.color }} />
-         <span className="text-slate-300 font-medium">{t.label}</span>
+         <span className="text-slate-600 font-medium">{t.label}</span>
         </span>
        ))}
       </motion.div>
@@ -2261,7 +2291,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
      damping: 24,
      delay: 0.1,
     }}
-    className="absolute top-14 right-2 sm:top-16 sm:right-3.5 z-20 flex flex-col bg-slate-950/85 backdrop-blur-md border border-white/10 rounded-md overflow-hidden shadow-lg select-none"
+    className="absolute top-14 right-2 sm:top-16 sm:right-3.5 z-20 flex flex-col bg-white/95 backdrop-blur-md border border-slate-200/90 rounded overflow-hidden shadow-xs select-none divide-y divide-slate-200/80"
    >
     {/* Theme Switcher Button */}
     <button
@@ -2272,40 +2302,37 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       setMapTheme(nextTheme);
       saveMapTheme(nextTheme);
      }}
-     className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-95 group relative"
-     title={`地图主题: ${mapTheme === 'white' ? '明亮模式 (点击切换为战术深色模式)' : '战术深色模式 (点击切换为明亮模式)'} · 350ms 平滑材质过渡`}
+     className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer active:scale-95 group relative"
+     title={`地图主题: ${mapTheme === 'white' ? '明亮模式 (点击切换为战术灰度模式)' : '战术灰度模式 (点击切换为明亮模式)'} · 350ms 平滑材质过渡`}
      aria-label="切换地图视觉主题"
     >
      {mapTheme === 'white' ? (
-      <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform duration-300" />
+      <Sun className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-45 transition-transform duration-300" />
      ) : (
-      <Moon className="w-3.5 h-3.5 text-indigo-300 group-hover:-rotate-12 transition-transform duration-300" />
+      <Moon className="w-3.5 h-3.5 text-indigo-500 group-hover:-rotate-12 transition-transform duration-300" />
      )}
     </button>
-    <div className="w-full h-[1px] bg-white/10" />
 
     <button
      type="button"
      onClick={() => applyZoom(1.3)}
-     className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:bg-white/15"
+     className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer active:bg-slate-100"
      title="放大视角 (Zoom In)"
     >
      <span className="font-mono text-xs font-bold leading-none">＋</span>
     </button>
-    <div className="w-full h-[1px] bg-white/10" />
     <button
      type="button"
      onClick={() => applyZoom(0.7)}
-     className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:bg-white/15"
+     className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer active:bg-slate-100"
      title="缩小视角 (Zoom Out)"
     >
      <span className="font-mono text-xs font-bold leading-none">－</span>
     </button>
-    <div className="w-full h-[1px] bg-white/10" />
     <button
      type="button"
      onClick={handleResetView}
-     className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:bg-white/15"
+     className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer active:bg-slate-100"
      title="重置全图中心 (Reset View)"
     >
      <RotateCcw className="w-3 h-3" />

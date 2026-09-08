@@ -14,6 +14,7 @@ import {
  Settings,
  Flame,
  Compass,
+ ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -90,8 +91,9 @@ export const CommandSidebar: React.FC<CommandSidebarProps> = ({
    ],
   },
   {
-   group: '国际外交与制裁',
+   group: '国际外交与经贸',
    items: [
+    { id: 'strategic_market', label: '战略军火市场', icon: ShoppingBag, hotkey: 'F6', badge: '军火交易', badgeColor: 'bg-emerald-600 text-white font-bold' },
     { id: 'embargo', label: '贸易禁运与制裁', icon: ShieldBan },
     { id: 'alliances', label: '条约同盟与使馆', icon: ScrollText },
    ],
